@@ -9,6 +9,11 @@
   --gray-100: #f5f5f7;
   --gray-200: #e8e8ed;
   --blue-accent: #007aff;
+
+  /* Espacios fluidos para pantallas pequeñas */
+  --pad-sm: max(12px, 3vw);
+  --pad-md: max(16px, 2.5vw);
+  --pad-lg: max(24px, 2vw);
 }
 
 @theme inline {
@@ -28,6 +33,9 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* 🔥 Margen lateral adaptable para evitar contenido pegado */
+  padding: var(--pad-sm);
 }
 
 /* Animaciones suaves globales */
@@ -65,10 +73,16 @@ select {
   -webkit-appearance: none;
   border: 1px solid #d2d2d7;
   border-radius: 8px;
-  padding: 12px 16px;
-  font-size: 14px;
+
+  /* 🔥 Padding que escala según el dispositivo */
+  padding: clamp(10px, 2.2vw, 16px) clamp(12px, 2vw, 18px);
+
+  font-size: clamp(14px, 2.4vw, 15px);
   transition: all 0.2s ease;
   background: white;
+
+  width: 100%; /* 🔥 Esto evita que se desborden o queden muy estrechos */
+  max-width: 100%;
 }
 
 input:focus,
@@ -85,6 +99,13 @@ button {
   font-weight: 500;
   letter-spacing: -0.01em;
   transition: all 0.2s ease;
+
+  /* 🔥 Espaciado adaptable */
+  padding: clamp(10px, 2vw, 14px) clamp(16px, 3vw, 22px);
+  font-size: clamp(14px, 2.5vw, 16px);
+
+  width: fit-content;
+  max-width: 100%;
 }
 
 button:active {
@@ -97,6 +118,11 @@ button:active {
   backdrop-filter: blur(10px);
   border: 1px solid rgba(0, 0, 0, 0.05);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border-radius: 14px;
+
+  /* 🔥 Espaciado interno adaptable */
+  padding: var(--pad-md);
+  width: 100%;
 }
 
 /* Animación de entrada suave */
@@ -132,6 +158,7 @@ button:active {
 table {
   border-collapse: separate;
   border-spacing: 0;
+  width: 100%; /* 🔥 Evita overflow en móvil */
 }
 
 thead {
@@ -144,4 +171,23 @@ tbody tr {
 
 tbody tr:hover {
   background: #fafafa;
+}
+
+/* 🔥 Ajustes responsivos adicionales */
+@media (max-width: 640px) {
+  body {
+    padding: var(--pad-sm);
+  }
+
+  table, thead, tbody, tr, td, th {
+    display: block; /* Evita amontonamiento en móvil sin alterar tu estilo */
+  }
+
+  tr {
+    margin-bottom: 12px;
+  }
+
+  td, th {
+    padding: 8px 0;
+  }
 }

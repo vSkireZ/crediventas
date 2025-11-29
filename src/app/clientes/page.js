@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Search, Plus, Eye, Edit2, Trash2, Filter } from 'lucide-react';
+import { Search, Plus, Eye, Edit2, Trash2, Filter, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function Clientes() {
@@ -8,6 +8,15 @@ export default function Clientes() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('todos');
+  const [showModal, setShowModal] = useState(false);
+  const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
+  const [selectedCliente, setSelectedCliente] = useState(null);
+  const [formData, setFormData] = useState({
+    nombre: '',
+    direccion: '',
+    telefono: '',
+    limite_credito: 0
+  });
 
   useEffect(() => {
     cargarClientes();
@@ -63,7 +72,110 @@ export default function Clientes() {
     cargarClientes();
   }, [filterStatus]);
 
-  if (loading) {
+  const abrirModalCrear = () => {
+    setModalMode('create');
+    setFormData({
+      nombre: '',
+      direccion: '',
+      telefono: '',
+      limite_credito: 0
+    });
+    setShowModal(true);
+  };
+
+  const abrirModalEditar = (cliente) => {
+    setModalMode('edit');
+    setSelectedCliente(cliente);
+    setFormData({
+      nombre: cliente.nombre,
+      direccion: cliente.direccion || '',
+      telefono: cliente.telefono || '',
+      limite_credito: cliente.limite_credito || 0
+    });
+    setShowModal(true);
+  };
+
+  const cerrarModal = () => {
+    setShowModal(false);
+    setSelectedCliente(null);
+    setFormData({
+      nombre: '',
+      direccion: '',
+      telefono: '',
+      limite_credito: 0
+    });
+  };
+
+  const guardarCliente = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      if (modalMode === 'create') {
+        // Crear nuevo cliente
+        const { error } = await supabase
+          .from('cliente')
+          .insert([{
+            ...formData,
+            saldo_pendiente: 0,
+            estado: 'activo'
+          }]);
+
+        if (error) throw error;
+        alert('Cliente creado exitosamente');
+      } else {
+        // Actualizar cliente existente
+        const { error } = await supabase
+          .from('cliente')
+          .update(formData)
+          .eq('id', selectedCliente.id);
+
+        if (error) throw error;
+        alert('Cliente actualizado exitosamente');
+      }
+
+      cerrarModal();
+      cargarClientes();
+    } catch (error) {
+      console.error('Error al guardar cliente:', error);
+      alert('Error: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const eliminarCliente = async (cliente) => {
+    if (!confirm(`¿Estás seguro de eliminar a ${cliente.nombre}?`)) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Soft delete: cambiar estado a inactivo
+      const { error } = await supabase
+        .from('cliente')
+        .update({ estado: 'inactivo' })
+        .eq('id', cliente.id);
+
+      if (error) throw error;
+
+      alert('Cliente eliminado exitosamente');
+      cargarClientes();
+    } catch (error) {
+      console.error('Error al eliminar:', error);
+      alert('Error: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verDetalle = (cliente) => {
+    alert(`Detalle de ${cliente.nombre}\n\nDirección: ${cliente.direccion || 'N/A'}\nTeléfono: ${cliente.telefono || 'N/A'}\nSaldo: $${parseFloat(cliente.saldo_pendiente || 0).toFixed(2)}\nLímite: $${parseFloat(cliente.limite_credito || 0).toFixed(2)}`);
+    // TODO: Crear página de detalle en /clientes/[id]
+  };
+
+  if (loading && clientes.length === 0) {
     return (
       <div className="flex justify-center items-center h-96">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
@@ -83,7 +195,10 @@ export default function Clientes() {
             {clientes.length} clientes registrados
           </p>
         </div>
-        <button className="flex items-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-xl font-medium hover:bg-blue-700 shadow-apple-sm hover:shadow-apple-md transition-all duration-200">
+        <button 
+          onClick={abrirModalCrear}
+          className="flex items-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-xl font-medium hover:bg-blue-700 shadow-apple-sm hover:shadow-apple-md transition-all duration-200"
+        >
           <Plus className="w-5 h-5" />
           Nuevo Cliente
         </button>
@@ -97,7 +212,7 @@ export default function Clientes() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Buscar cliente por nombre..."
+              placeholder="       Buscar cliente por nombre..."
               value={searchTerm}
               onChange={(e) => buscarClientes(e.target.value)}
               className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -191,13 +306,25 @@ export default function Clientes() {
                     </td>
                     <td className="p-4">
                       <div className="flex items-center justify-center gap-2">
-                        <button className="p-2 hover:bg-blue-50 rounded-lg transition-colors group">
+                        <button 
+                          onClick={() => verDetalle(cliente)}
+                          className="p-2 hover:bg-blue-50 rounded-lg transition-colors group"
+                          title="Ver detalle"
+                        >
                           <Eye className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
                         </button>
-                        <button className="p-2 hover:bg-blue-50 rounded-lg transition-colors group">
+                        <button 
+                          onClick={() => abrirModalEditar(cliente)}
+                          className="p-2 hover:bg-blue-50 rounded-lg transition-colors group"
+                          title="Editar"
+                        >
                           <Edit2 className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
                         </button>
-                        <button className="p-2 hover:bg-red-50 rounded-lg transition-colors group">
+                        <button 
+                          onClick={() => eliminarCliente(cliente)}
+                          className="p-2 hover:bg-red-50 rounded-lg transition-colors group"
+                          title="Eliminar"
+                        >
                           <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-600" />
                         </button>
                       </div>
@@ -214,19 +341,104 @@ export default function Clientes() {
           <p className="text-sm text-gray-600">
             Mostrando {clientes.length} clientes
           </p>
-          <div className="flex gap-2">
-            <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-              Anterior
-            </button>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-              1
-            </button>
-            <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-              Siguiente
-            </button>
-          </div>
         </div>
       </div>
+
+      {/* Modal Crear/Editar Cliente */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-apple-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {modalMode === 'create' ? 'Nuevo Cliente' : 'Editar Cliente'}
+              </h2>
+              <button 
+                onClick={cerrarModal}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <form onSubmit={guardarCliente} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre *
+                </label>
+                <input
+                  type="text"
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                  placeholder="Nombre del cliente"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Dirección
+                </label>
+                <input
+                  type="text"
+                  value={formData.direccion}
+                  onChange={(e) => setFormData({...formData, direccion: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Dirección completa"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Teléfono
+                </label>
+                <input
+                  type="tel"
+                  value={formData.telefono}
+                  onChange={(e) => setFormData({...formData, telefono: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="331-123-4567"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Límite de Crédito *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.limite_credito}
+                    onChange={(e) => setFormData({...formData, limite_credito: parseFloat(e.target.value)})}
+                    className="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={cerrarModal}
+                  className="flex-1 px-4 py-3 border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Guardando...' : 'Guardar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

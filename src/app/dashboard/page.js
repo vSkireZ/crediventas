@@ -9,27 +9,75 @@ export default function Dashboard() {
     saldoTotal: 0,
     clientesMorosos: 0
   });
+  const [ventasRecientes, setVentasRecientes] = useState([]);
+  const [abonosRecientes, setAbonosRecientes] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    cargarEstadisticas();
+    cargarDatos();
   }, []);
 
-  const cargarEstadisticas = async () => {
+  const cargarDatos = async () => {
     try {
-      const { data, error } = await supabase
-        .rpc('obtener_dashboard_stats');
-
-      if (error) throw error;
+      // Cargar estadísticas manualmente (sin RPC)
+      const hoy = new Date().toISOString().split('T')[0];
+      
+      // Ventas de hoy
+      const { data: ventasHoy, error: ventasError } = await supabase
+        .from('venta')
+        .select('total')
+        .gte('fecha', `${hoy}T00:00:00`)
+        .lte('fecha', `${hoy}T23:59:59`);
+      
+      if (ventasError) throw ventasError;
+      
+      // Abonos de hoy
+      const { data: abonosHoy, error: abonosError } = await supabase
+        .from('abono')
+        .select('monto')
+        .gte('fecha', `${hoy}T00:00:00`)
+        .lte('fecha', `${hoy}T23:59:59`);
+      
+      if (abonosError) throw abonosError;
+      
+      // Saldo total
+      const { data: clientes, error: clientesError } = await supabase
+        .from('cliente')
+        .select('saldo_pendiente, estado');
+      
+      if (clientesError) throw clientesError;
+      
+      // Calcular estadísticas
+      const totalVentas = ventasHoy?.reduce((sum, v) => sum + parseFloat(v.total || 0), 0) || 0;
+      const totalAbonos = abonosHoy?.reduce((sum, a) => sum + parseFloat(a.monto || 0), 0) || 0;
+      const saldoTotal = clientes?.reduce((sum, c) => sum + parseFloat(c.saldo_pendiente || 0), 0) || 0;
+      const morosos = clientes?.filter(c => c.estado === 'moroso').length || 0;
       
       setStats({
-        ventasHoy: data.ventas_hoy || 0,
-        abonosHoy: data.abonos_hoy || 0,
-        saldoTotal: data.saldo_total || 0,
-        clientesMorosos: data.clientes_morosos || 0
+        ventasHoy: totalVentas,
+        abonosHoy: totalAbonos,
+        saldoTotal: saldoTotal,
+        clientesMorosos: morosos
       });
+
+      // Cargar actividad reciente
+      const { data: ventas } = await supabase
+        .from('venta')
+        .select('id, total, fecha, cliente:cliente_id(nombre)')
+        .order('fecha', { ascending: false })
+        .limit(3);
+      
+      const { data: abonos } = await supabase
+        .from('abono')
+        .select('id, monto, fecha, cliente:cliente_id(nombre)')
+        .order('fecha', { ascending: false })
+        .limit(3);
+      
+      setVentasRecientes(ventas || []);
+      setAbonosRecientes(abonos || []);
+      
     } catch (error) {
-      console.error('Error al cargar estadísticas:', error);
+      console.error('Error al cargar datos:', error);
     } finally {
       setLoading(false);
     }
@@ -64,7 +112,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <KPICard
           title="Ventas de Hoy"
-          value={`${stats.ventasHoy.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
+          value={`$${stats.ventasHoy.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
           trend="+12.5%"
           trendUp={true}
           icon="💳"
@@ -72,7 +120,7 @@ export default function Dashboard() {
         />
         <KPICard
           title="Cobrado Hoy"
-          value={`${stats.abonosHoy.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
+          value={`$${stats.abonosHoy.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
           trend="+8.3%"
           trendUp={true}
           icon="💰"
@@ -80,7 +128,7 @@ export default function Dashboard() {
         />
         <KPICard
           title="Saldo Pendiente"
-          value={`${stats.saldoTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
+          value={`$${stats.saldoTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
           trend="-3.2%"
           trendUp={true}
           icon="📊"
@@ -94,24 +142,19 @@ export default function Dashboard() {
         <div className="bg-white rounded-2xl p-6 shadow-apple-md border border-gray-100">
           <h2 className="text-xl font-semibold mb-4 text-gray-900">Últimas Ventas</h2>
           <div className="space-y-3">
-            <ActivityItem
-              title="Abarrotes Don Pepe"
-              subtitle="Venta #1234"
-              amount="$850.00"
-              time="Hace 15 min"
-            />
-            <ActivityItem
-              title="Tienda La Esquina"
-              subtitle="Venta #1233"
-              amount="$1,250.00"
-              time="Hace 1 hora"
-            />
-            <ActivityItem
-              title="Minisuper Ramírez"
-              subtitle="Venta #1232"
-              amount="$3,400.00"
-              time="Hace 2 horas"
-            />
+            {ventasRecientes.length === 0 ? (
+              <p className="text-gray-500 text-sm text-center py-4">No hay ventas recientes</p>
+            ) : (
+              ventasRecientes.map((venta, index) => (
+                <ActivityItem
+                  key={venta.id}
+                  title={venta.cliente?.nombre || 'Cliente desconocido'}
+                  subtitle={`Venta #${venta.id.substring(0, 8)}`}
+                  amount={`$${parseFloat(venta.total).toFixed(2)}`}
+                  time={formatTimeAgo(venta.fecha)}
+                />
+              ))
+            )}
           </div>
         </div>
 
@@ -119,27 +162,20 @@ export default function Dashboard() {
         <div className="bg-white rounded-2xl p-6 shadow-apple-md border border-gray-100">
           <h2 className="text-xl font-semibold mb-4 text-gray-900">Pagos Recientes</h2>
           <div className="space-y-3">
-            <ActivityItem
-              title="María González"
-              subtitle="Abono #789"
-              amount="$500.00"
-              time="Hace 30 min"
-              isPayment={true}
-            />
-            <ActivityItem
-              title="Abarrotes Central"
-              subtitle="Abono #788"
-              amount="$1,000.00"
-              time="Hace 1 hora"
-              isPayment={true}
-            />
-            <ActivityItem
-              title="Tienda Los Arcos"
-              subtitle="Abono #787"
-              amount="$750.00"
-              time="Hace 3 horas"
-              isPayment={true}
-            />
+            {abonosRecientes.length === 0 ? (
+              <p className="text-gray-500 text-sm text-center py-4">No hay pagos recientes</p>
+            ) : (
+              abonosRecientes.map((abono) => (
+                <ActivityItem
+                  key={abono.id}
+                  title={abono.cliente?.nombre || 'Cliente desconocido'}
+                  subtitle={`Abono #${abono.id.substring(0, 8)}`}
+                  amount={`$${parseFloat(abono.monto).toFixed(2)}`}
+                  time={formatTimeAgo(abono.fecha)}
+                  isPayment={true}
+                />
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -212,4 +248,18 @@ function ActivityItem({ title, subtitle, amount, time, isPayment = false }) {
       </div>
     </div>
   );
+}
+
+// Función auxiliar para formatear tiempo
+function formatTimeAgo(fecha) {
+  const ahora = new Date();
+  const entonces = new Date(fecha);
+  const diffMs = ahora - entonces;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  
+  if (diffMins < 1) return 'Justo ahora';
+  if (diffMins < 60) return `Hace ${diffMins} min`;
+  if (diffHours < 24) return `Hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`;
+  return `Hace ${Math.floor(diffHours / 24)} día${Math.floor(diffHours / 24) > 1 ? 's' : ''}`;
 }

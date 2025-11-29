@@ -25,20 +25,17 @@ export default function Ventas() {
         .eq('activo', true)
         .order('nombre');
 
-      if (prodError) throw prodError;
+      if (prodError) {
+        console.error('Error productos:', prodError);
+        throw prodError;
+      }
+      
       setProductos(prodData || []);
 
-      // Cargar clientes
-      const { data: cliData, error: cliError } = await supabase
-        .from('cliente')
-        .select('*')
-        .eq('estado', 'activo')
-        .order('nombre');
-
-      if (cliError) throw cliError;
-      setClientes(cliData || []);
+      // No cargar clientes al inicio (solo cuando busquen)
+      setClientes([]);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error al cargar datos:', error);
       alert('Error al cargar datos: ' + error.message);
     } finally {
       setLoading(false);
@@ -64,7 +61,7 @@ export default function Ventas() {
       if (error) throw error;
       setProductos(data || []);
     } catch (error) {
-      console.error('Error en búsqueda:', error);
+      console.error('Error en búsqueda productos:', error);
     }
   };
 
@@ -87,7 +84,7 @@ export default function Ventas() {
       if (error) throw error;
       setClientes(data || []);
     } catch (error) {
-      console.error('Error en búsqueda:', error);
+      console.error('Error en búsqueda clientes:', error);
     }
   };
 
@@ -150,34 +147,46 @@ export default function Ventas() {
       return;
     }
 
+    setLoading(true);
+
     try {
       // Verificar límite de crédito
       const total = calcularTotal();
-      const creditoDisponible = parseFloat(clienteSeleccionado.limite_credito) - 
-                                parseFloat(clienteSeleccionado.saldo_pendiente);
+      const creditoDisponible = parseFloat(clienteSeleccionado.limite_credito || 0) - 
+                                parseFloat(clienteSeleccionado.saldo_pendiente || 0);
 
       if (total > creditoDisponible) {
-        alert(`El cliente no tiene crédito suficiente. Disponible: $${creditoDisponible.toFixed(2)}`);
+        alert(`El cliente no tiene crédito suficiente.\nDisponible: $${creditoDisponible.toFixed(2)}\nTotal venta: $${total.toFixed(2)}`);
+        setLoading(false);
         return;
       }
 
-      // Crear venta
+      // 1. Crear venta
+      console.log('Creando venta...');
+      const ventaData = {
+        cliente_id: clienteSeleccionado.id,
+        empleado_id: '4d7133c3-fb1a-49ee-871a-2c5b0a8d984a', // UUID temporal
+        subtotal: calcularSubtotal(),
+        iva: calcularIVA(),
+        total: calcularTotal(),
+        plazo: 30,
+        estado: 'pendiente'
+      };
+
       const { data: venta, error: ventaError } = await supabase
         .from('venta')
-        .insert([{
-          cliente_id: clienteSeleccionado.id,
-          empleado_id: 'id-del-empleado-actual', // Obtener del contexto de autenticación
-          subtotal: calcularSubtotal(),
-          iva: calcularIVA(),
-          total: calcularTotal(),
-          plazo: 30
-        }])
+        .insert([ventaData])
         .select()
         .single();
 
-      if (ventaError) throw ventaError;
+      if (ventaError) {
+        console.error('Error al crear venta:', ventaError);
+        throw new Error(`Error al crear venta: ${ventaError.message}`);
+      }
 
-      // Crear detalles de venta
+      console.log('Venta creada:', venta);
+
+      // 2. Crear detalles de venta
       const detalles = carrito.map(prod => ({
         venta_id: venta.id,
         producto_id: prod.id,
@@ -186,11 +195,28 @@ export default function Ventas() {
         subtotal: parseFloat(prod.precio) * prod.cantidad
       }));
 
+      console.log('Creando detalles:', detalles);
+
       const { error: detallesError } = await supabase
         .from('detalle_venta')
         .insert(detalles);
 
-      if (detallesError) throw detallesError;
+      if (detallesError) {
+        console.error('Error al crear detalles:', detallesError);
+        throw new Error(`Error al crear detalles: ${detallesError.message}`);
+      }
+
+      // 3. Actualizar saldo del cliente manualmente
+      const nuevoSaldo = parseFloat(clienteSeleccionado.saldo_pendiente || 0) + calcularTotal();
+      
+      const { error: updateError } = await supabase
+        .from('cliente')
+        .update({ saldo_pendiente: nuevoSaldo })
+        .eq('id', clienteSeleccionado.id);
+
+      if (updateError) {
+        console.error('Error al actualizar saldo:', updateError);
+      }
 
       alert('¡Venta registrada exitosamente!');
       
@@ -200,12 +226,14 @@ export default function Ventas() {
       setSearchCliente('');
       cargarDatos();
     } catch (error) {
-      console.error('Error al registrar venta:', error);
-      alert('Error al registrar venta: ' + error.message);
+      console.error('Error completo:', error);
+      alert('Error al registrar venta: ' + (error.message || 'Error desconocido'));
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (loading) {
+  if (loading && productos.length === 0) {
     return (
       <div className="flex justify-center items-center h-96">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
@@ -236,6 +264,7 @@ export default function Ventas() {
                 value={searchCliente}
                 onChange={(e) => buscarClientes(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={loading}
               />
             </div>
             
@@ -245,12 +274,13 @@ export default function Ventas() {
                 {clientes.map(cliente => (
                   <button
                     key={cliente.id}
+                    type="button"
                     onClick={() => seleccionarCliente(cliente)}
-                    className="w-full text-left p-3 hover:bg-gray-50 border-b last:border-b-0"
+                    className="w-full text-left p-3 hover:bg-gray-50 border-b last:border-b-0 transition-colors"
                   >
                     <p className="font-medium text-gray-900">{cliente.nombre}</p>
                     <p className="text-sm text-gray-600">
-                      Crédito disponible: ${(parseFloat(cliente.limite_credito) - parseFloat(cliente.saldo_pendiente)).toFixed(2)}
+                      Crédito disponible: ${(parseFloat(cliente.limite_credito || 0) - parseFloat(cliente.saldo_pendiente || 0)).toFixed(2)}
                     </p>
                   </button>
                 ))}
@@ -263,11 +293,12 @@ export default function Ventas() {
                   <div>
                     <p className="font-medium text-gray-900">{clienteSeleccionado.nombre}</p>
                     <p className="text-sm text-gray-600 mt-1">
-                      Límite: ${parseFloat(clienteSeleccionado.limite_credito).toFixed(2)} · 
-                      Disponible: ${(parseFloat(clienteSeleccionado.limite_credito) - parseFloat(clienteSeleccionado.saldo_pendiente)).toFixed(2)}
+                      Límite: ${parseFloat(clienteSeleccionado.limite_credito || 0).toFixed(2)} · 
+                      Disponible: ${(parseFloat(clienteSeleccionado.limite_credito || 0) - parseFloat(clienteSeleccionado.saldo_pendiente || 0)).toFixed(2)}
                     </p>
                   </div>
                   <button
+                    type="button"
                     onClick={() => {
                       setClienteSeleccionado(null);
                       setSearchCliente('');
@@ -302,26 +333,33 @@ export default function Ventas() {
             </div>
 
             <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto">
-              {productos.map((producto) => (
-                <button
-                  key={producto.id}
-                  onClick={() => agregarAlCarrito(producto)}
-                  disabled={producto.stock <= 0}
-                  className="p-4 border border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 text-left group disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-semibold text-xs">
-                      {producto.codigo?.split('-')[1] || 'P'}
+              {productos.length === 0 ? (
+                <div className="col-span-2 text-center py-8 text-gray-500">
+                  No hay productos disponibles
+                </div>
+              ) : (
+                productos.map((producto) => (
+                  <button
+                    key={producto.id}
+                    type="button"
+                    onClick={() => agregarAlCarrito(producto)}
+                    disabled={producto.stock <= 0}
+                    className="p-4 border border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 text-left group disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-semibold text-xs">
+                        {producto.codigo?.split('-')[1] || 'P'}
+                      </div>
+                      <Plus className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
                     </div>
-                    <Plus className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
-                  </div>
-                  <p className="font-medium text-gray-900 text-sm mb-1 line-clamp-2">{producto.nombre}</p>
-                  <div className="flex items-center justify-between">
-                    <p className="text-blue-600 font-semibold">${parseFloat(producto.precio).toFixed(2)}</p>
-                    <p className="text-xs text-gray-500">Stock: {producto.stock}</p>
-                  </div>
-                </button>
-              ))}
+                    <p className="font-medium text-gray-900 text-sm mb-1 line-clamp-2">{producto.nombre}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-blue-600 font-semibold">${parseFloat(producto.precio).toFixed(2)}</p>
+                      <p className="text-xs text-gray-500">Stock: {producto.stock}</p>
+                    </div>
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -353,6 +391,7 @@ export default function Ventas() {
                       </div>
                       <div className="flex items-center gap-2">
                         <button 
+                          type="button"
                           onClick={() => modificarCantidad(item.id, 'decrementar')}
                           className="w-7 h-7 rounded-lg border border-gray-300 flex items-center justify-center hover:bg-gray-100"
                         >
@@ -360,6 +399,7 @@ export default function Ventas() {
                         </button>
                         <span className="w-8 text-center font-medium text-sm">{item.cantidad}</span>
                         <button 
+                          type="button"
                           onClick={() => modificarCantidad(item.id, 'incrementar')}
                           className="w-7 h-7 rounded-lg border border-gray-300 flex items-center justify-center hover:bg-gray-100"
                         >
@@ -367,6 +407,7 @@ export default function Ventas() {
                         </button>
                       </div>
                       <button 
+                        type="button"
                         onClick={() => eliminarDelCarrito(item.id)}
                         className="p-1 hover:bg-red-50 rounded-lg"
                       >
@@ -400,11 +441,19 @@ export default function Ventas() {
             {/* Botón de confirmación */}
             <div className="p-6 pt-0">
               <button 
+                type="button"
                 onClick={confirmarVenta}
-                disabled={carrito.length === 0 || !clienteSeleccionado}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 shadow-apple-md hover:shadow-apple-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-apple-md"
+                disabled={carrito.length === 0 || !clienteSeleccionado || loading}
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 shadow-apple-md hover:shadow-apple-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-apple-md flex items-center justify-center gap-2"
               >
-                Confirmar Venta
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                    Procesando...
+                  </>
+                ) : (
+                  'Confirmar Venta'
+                )}
               </button>
             </div>
           </div>
