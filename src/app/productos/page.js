@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2, Package, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Package, AlertTriangle, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function Productos() {
@@ -8,6 +8,17 @@ export default function Productos() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStock, setFilterStock] = useState('todos');
+  const [showModal, setShowModal] = useState(false);
+  const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
+  const [selectedProducto, setSelectedProducto] = useState(null);
+  const [formData, setFormData] = useState({
+    codigo: '',
+    nombre: '',
+    descripcion: '',
+    precio: 0,
+    stock: 0,
+    stock_minimo: 5
+  });
 
   useEffect(() => {
     cargarProductos();
@@ -21,7 +32,6 @@ export default function Productos() {
         .eq('activo', true)
         .order('nombre', { ascending: true });
 
-      // Aplicar filtro de stock
       if (filterStock === 'bajo') {
         query = query.lte('stock', supabase.raw('stock_minimo'));
       } else if (filterStock === 'agotado') {
@@ -67,6 +77,107 @@ export default function Productos() {
     cargarProductos();
   }, [filterStock]);
 
+  const abrirModalCrear = () => {
+    setModalMode('create');
+    setFormData({
+      codigo: `PROD-${Date.now().toString().slice(-6)}`,
+      nombre: '',
+      descripcion: '',
+      precio: 0,
+      stock: 0,
+      stock_minimo: 5
+    });
+    setShowModal(true);
+  };
+
+  const abrirModalEditar = (producto) => {
+    setModalMode('edit');
+    setSelectedProducto(producto);
+    setFormData({
+      codigo: producto.codigo,
+      nombre: producto.nombre,
+      descripcion: producto.descripcion || '',
+      precio: producto.precio,
+      stock: producto.stock,
+      stock_minimo: producto.stock_minimo
+    });
+    setShowModal(true);
+  };
+
+  const cerrarModal = () => {
+    setShowModal(false);
+    setSelectedProducto(null);
+    setFormData({
+      codigo: '',
+      nombre: '',
+      descripcion: '',
+      precio: 0,
+      stock: 0,
+      stock_minimo: 5
+    });
+  };
+
+  const guardarProducto = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      if (modalMode === 'create') {
+        const { error } = await supabase
+          .from('producto')
+          .insert([{
+            ...formData,
+            activo: true
+          }]);
+
+        if (error) throw error;
+        alert('Producto creado exitosamente');
+      } else {
+        const { error } = await supabase
+          .from('producto')
+          .update(formData)
+          .eq('id', selectedProducto.id);
+
+        if (error) throw error;
+        alert('Producto actualizado exitosamente');
+      }
+
+      cerrarModal();
+      cargarProductos();
+    } catch (error) {
+      console.error('Error al guardar producto:', error);
+      alert('Error: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const eliminarProducto = async (producto) => {
+    if (!confirm(`¿Estás seguro de eliminar "${producto.nombre}"?`)) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Soft delete
+      const { error } = await supabase
+        .from('producto')
+        .update({ activo: false })
+        .eq('id', producto.id);
+
+      if (error) throw error;
+
+      alert('Producto eliminado exitosamente');
+      cargarProductos();
+    } catch (error) {
+      console.error('Error al eliminar:', error);
+      alert('Error: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const obtenerEstadoStock = (producto) => {
     if (producto.stock === 0) {
       return { label: 'Agotado', color: 'bg-red-100 text-red-700' };
@@ -77,54 +188,55 @@ export default function Productos() {
     }
   };
 
-  if (loading) {
+  if (loading && productos.length === 0) {
     return (
-      <div className="flex justify-center items-center h-96">
+      <div className="flex justify-center items-center min-h-[60vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
       </div>
     );
   }
 
   return (
-    <div className="animate-fadeInUp">
+    <div className="animate-fadeInUp space-y-6 md:space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 md:gap-6 mb-6 md:mb-8">
         <div>
-          <h1 className="text-4xl font-semibold tracking-tight text-gray-900 mb-2">
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight text-gray-900 mb-2">
             Inventario de Productos
           </h1>
-          <p className="text-gray-600">
+          <p className="text-sm md:text-base text-gray-600">
             {productos.length} productos registrados
           </p>
         </div>
-        <button className="flex items-center gap-2 bg-green-600 text-white px-5 py-3 rounded-xl font-medium hover:bg-green-700 shadow-apple-sm hover:shadow-apple-md transition-all duration-200">
+        <button 
+          onClick={abrirModalCrear}
+          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-green-600 text-white px-5 md:px-6 py-3 md:py-3.5 rounded-xl font-medium hover:bg-green-700 shadow-apple-sm hover:shadow-apple-md transition-all duration-200"
+        >
           <Plus className="w-5 h-5" />
-          Agregar Producto
+          <span>Agregar Producto</span>
         </button>
       </div>
 
       {/* Búsqueda y Filtros */}
-      <div className="bg-white rounded-2xl p-6 shadow-apple-md border border-gray-100 mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* Barra de búsqueda */}
+      <div className="bg-white rounded-2xl p-5 md:p-7 shadow-apple-md border border-gray-100 mb-6 md:mb-8">
+        <div className="flex flex-col lg:flex-row gap-4 md:gap-5">
           <div className="flex-1 relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Buscar producto por nombre o código..."
+              placeholder="     Buscar producto por nombre o código..."
               value={searchTerm}
               onChange={(e) => buscarProductos(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-12 pr-4 py-3 md:py-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
             />
           </div>
 
-          {/* Filtro de stock */}
-          <div className="flex items-center gap-2">
-            <Package className="w-5 h-5 text-gray-400" />
+          <div className="flex items-center gap-3 md:gap-4">
+            <Package className="w-5 h-5 text-gray-400 flex-shrink-0" />
             <select
               value={filterStock}
               onChange={(e) => setFilterStock(e.target.value)}
-              className="px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="flex-1 lg:flex-initial px-4 py-3 md:py-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
             >
               <option value="todos">Todos los productos</option>
               <option value="bajo">Bajo stock</option>
@@ -134,25 +246,25 @@ export default function Productos() {
         </div>
       </div>
 
-      {/* Tabla de Productos */}
+      {/* Tabla */}
       <div className="bg-white rounded-2xl shadow-apple-md border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[900px]">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left p-4 text-sm font-semibold text-gray-700">Código</th>
-                <th className="text-left p-4 text-sm font-semibold text-gray-700">Producto</th>
-                <th className="text-right p-4 text-sm font-semibold text-gray-700">Precio</th>
-                <th className="text-center p-4 text-sm font-semibold text-gray-700">Stock</th>
-                <th className="text-center p-4 text-sm font-semibold text-gray-700">Mín.</th>
-                <th className="text-center p-4 text-sm font-semibold text-gray-700">Estado</th>
-                <th className="text-center p-4 text-sm font-semibold text-gray-700">Acciones</th>
+                <th className="text-left p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Código</th>
+                <th className="text-left p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Producto</th>
+                <th className="text-right p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Precio</th>
+                <th className="text-center p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Stock</th>
+                <th className="text-center p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Mín.</th>
+                <th className="text-center p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Estado</th>
+                <th className="text-center p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {productos.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="text-center py-12 text-gray-500">
+                  <td colSpan="7" className="text-center py-16 md:py-20 text-gray-500 text-sm md:text-base">
                     No se encontraron productos
                   </td>
                 </tr>
@@ -164,26 +276,26 @@ export default function Productos() {
                       key={producto.id} 
                       className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                     >
-                      <td className="p-4">
-                        <span className="font-mono text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                      <td className="p-4 md:p-5">
+                        <span className="font-mono text-xs md:text-sm text-gray-600 bg-gray-100 px-2.5 py-1 md:px-3 md:py-1.5 rounded">
                           {producto.codigo}
                         </span>
                       </td>
-                      <td className="p-4">
+                      <td className="p-4 md:p-5">
                         <div>
-                          <p className="font-medium text-gray-900">{producto.nombre}</p>
+                          <p className="font-medium text-gray-900 text-sm md:text-base mb-1">{producto.nombre}</p>
                           {producto.descripcion && (
-                            <p className="text-sm text-gray-500 line-clamp-1">{producto.descripcion}</p>
+                            <p className="text-xs md:text-sm text-gray-500 line-clamp-1">{producto.descripcion}</p>
                           )}
                         </div>
                       </td>
-                      <td className="p-4 text-right">
-                        <p className="font-semibold text-gray-900">
+                      <td className="p-4 md:p-5 text-right">
+                        <p className="font-semibold text-gray-900 text-sm md:text-base">
                           ${parseFloat(producto.precio).toFixed(2)}
                         </p>
                       </td>
-                      <td className="p-4 text-center">
-                        <span className={`font-semibold ${
+                      <td className="p-4 md:p-5 text-center">
+                        <span className={`font-semibold text-sm md:text-base ${
                           producto.stock === 0 
                             ? 'text-red-600' 
                             : producto.stock <= producto.stock_minimo 
@@ -193,14 +305,14 @@ export default function Productos() {
                           {producto.stock}
                         </span>
                       </td>
-                      <td className="p-4 text-center">
-                        <span className="text-sm text-gray-500">
+                      <td className="p-4 md:p-5 text-center">
+                        <span className="text-xs md:text-sm text-gray-500">
                           {producto.stock_minimo}
                         </span>
                       </td>
-                      <td className="p-4">
+                      <td className="p-4 md:p-5">
                         <div className="flex justify-center">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${estado.color} flex items-center gap-1`}>
+                          <span className={`px-2.5 md:px-3 py-1 md:py-1.5 rounded-full text-xs font-medium ${estado.color} flex items-center gap-1`}>
                             {producto.stock <= producto.stock_minimo && (
                               <AlertTriangle className="w-3 h-3" />
                             )}
@@ -208,12 +320,20 @@ export default function Productos() {
                           </span>
                         </div>
                       </td>
-                      <td className="p-4">
+                      <td className="p-4 md:p-5">
                         <div className="flex items-center justify-center gap-2">
-                          <button className="p-2 hover:bg-blue-50 rounded-lg transition-colors group">
+                          <button 
+                            onClick={() => abrirModalEditar(producto)}
+                            className="p-2 hover:bg-blue-50 rounded-lg transition-colors group"
+                            title="Editar"
+                          >
                             <Edit2 className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
                           </button>
-                          <button className="p-2 hover:bg-red-50 rounded-lg transition-colors group">
+                          <button 
+                            onClick={() => eliminarProducto(producto)}
+                            className="p-2 hover:bg-red-50 rounded-lg transition-colors group"
+                            title="Eliminar"
+                          >
                             <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-600" />
                           </button>
                         </div>
@@ -226,41 +346,142 @@ export default function Productos() {
           </table>
         </div>
 
-        {/* Paginación */}
-        <div className="flex items-center justify-between p-4 border-t border-gray-100">
-          <p className="text-sm text-gray-600">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 md:p-5 border-t border-gray-100">
+          <p className="text-xs md:text-sm text-gray-600">
             Mostrando {productos.length} productos
           </p>
-          <div className="flex gap-2">
-            <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-              Anterior
-            </button>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-              1
-            </button>
-            <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-              Siguiente
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* Alerta de productos con bajo stock */}
+      {/* Alerta */}
       {productos.some(p => p.stock <= p.stock_minimo) && (
-        <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-2xl p-6">
-          <div className="flex items-start gap-4">
-            <AlertTriangle className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-1">
+        <div className="mt-6 md:mt-8 bg-yellow-50 border border-yellow-200 rounded-2xl p-5 md:p-7">
+          <div className="flex items-start gap-4 md:gap-5">
+            <AlertTriangle className="w-6 h-6 md:w-7 md:h-7 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-gray-900 mb-2 text-base md:text-lg">
                 Productos con stock bajo o agotado
               </h3>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm md:text-base text-gray-600">
                 Hay {productos.filter(p => p.stock <= p.stock_minimo).length} productos que requieren reabastecimiento.
-                <button className="ml-2 text-yellow-700 font-medium hover:text-yellow-800">
-                  Ver lista →
-                </button>
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-apple-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-5 md:p-7 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white">
+              <h2 className="text-lg md:text-xl font-semibold text-gray-900">
+                {modalMode === 'create' ? 'Nuevo Producto' : 'Editar Producto'}
+              </h2>
+              <button 
+                onClick={cerrarModal}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <form onSubmit={guardarProducto} className="p-5 md:p-7 space-y-5 md:space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Código *</label>
+                <input
+                  type="text"
+                  value={formData.codigo}
+                  onChange={(e) => setFormData({...formData, codigo: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                  placeholder="PROD-001"
+                  disabled={modalMode === 'edit'}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Nombre *</label>
+                <input
+                  type="text"
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                  placeholder="Nombre del producto"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
+                <textarea
+                  value={formData.descripcion}
+                  onChange={(e) => setFormData({...formData, descripcion: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows="3"
+                  placeholder="Descripción opcional del producto"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Precio *</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.precio}
+                      onChange={(e) => setFormData({...formData, precio: parseFloat(e.target.value)})}
+                      className="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Stock *</label>
+                  <input
+                    type="number"
+                    value={formData.stock}
+                    onChange={(e) => setFormData({...formData, stock: parseInt(e.target.value)})}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Stock Mínimo *</label>
+                <input
+                  type="number"
+                  value={formData.stock_minimo}
+                  onChange={(e) => setFormData({...formData, stock_minimo: parseInt(e.target.value)})}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                  placeholder="5"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={cerrarModal}
+                  className="flex-1 px-4 py-3 border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Guardando...' : 'Guardar'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

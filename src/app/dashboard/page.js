@@ -19,10 +19,8 @@ export default function Dashboard() {
 
   const cargarDatos = async () => {
     try {
-      // Cargar estadísticas manualmente (sin RPC)
       const hoy = new Date().toISOString().split('T')[0];
       
-      // Ventas de hoy
       const { data: ventasHoy, error: ventasError } = await supabase
         .from('venta')
         .select('total')
@@ -31,7 +29,6 @@ export default function Dashboard() {
       
       if (ventasError) throw ventasError;
       
-      // Abonos de hoy
       const { data: abonosHoy, error: abonosError } = await supabase
         .from('abono')
         .select('monto')
@@ -40,14 +37,12 @@ export default function Dashboard() {
       
       if (abonosError) throw abonosError;
       
-      // Saldo total
       const { data: clientes, error: clientesError } = await supabase
         .from('cliente')
         .select('saldo_pendiente, estado');
       
       if (clientesError) throw clientesError;
       
-      // Calcular estadísticas
       const totalVentas = ventasHoy?.reduce((sum, v) => sum + parseFloat(v.total || 0), 0) || 0;
       const totalAbonos = abonosHoy?.reduce((sum, a) => sum + parseFloat(a.monto || 0), 0) || 0;
       const saldoTotal = clientes?.reduce((sum, c) => sum + parseFloat(c.saldo_pendiente || 0), 0) || 0;
@@ -60,7 +55,6 @@ export default function Dashboard() {
         clientesMorosos: morosos
       });
 
-      // Cargar actividad reciente
       const { data: ventas } = await supabase
         .from('venta')
         .select('id, total, fecha, cliente:cliente_id(nombre)')
@@ -85,20 +79,20 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-96">
+      <div className="flex justify-center items-center min-h-[60vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
       </div>
     );
   }
 
   return (
-    <div className="animate-fadeInUp">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-semibold tracking-tight text-gray-900 mb-2">
+    <div className="animate-fadeInUp space-y-6 md:space-y-8">
+      {/* Header con más espacio */}
+      <div className="mb-6 md:mb-10">
+        <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight text-gray-900 mb-2 md:mb-3">
           Panel Principal
         </h1>
-        <p className="text-gray-600">
+        <p className="text-sm md:text-base text-gray-600">
           Resumen de actividad del día · {new Date().toLocaleDateString('es-MX', { 
             weekday: 'long', 
             year: 'numeric', 
@@ -108,8 +102,8 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      {/* KPI Cards con espaciado mejorado */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8 mb-6 md:mb-10">
         <KPICard
           title="Ventas de Hoy"
           value={`$${stats.ventasHoy.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
@@ -136,16 +130,16 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Actividad Reciente */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Actividad Reciente con mejor espaciado */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
         {/* Últimas Ventas */}
-        <div className="bg-white rounded-2xl p-6 shadow-apple-md border border-gray-100">
-          <h2 className="text-xl font-semibold mb-4 text-gray-900">Últimas Ventas</h2>
-          <div className="space-y-3">
+        <div className="bg-white rounded-2xl p-5 md:p-7 shadow-apple-md border border-gray-100">
+          <h2 className="text-lg md:text-xl font-semibold mb-5 md:mb-6 text-gray-900">Últimas Ventas</h2>
+          <div className="space-y-3 md:space-y-4">
             {ventasRecientes.length === 0 ? (
-              <p className="text-gray-500 text-sm text-center py-4">No hay ventas recientes</p>
+              <p className="text-gray-500 text-sm text-center py-8 md:py-12">No hay ventas recientes</p>
             ) : (
-              ventasRecientes.map((venta, index) => (
+              ventasRecientes.map((venta) => (
                 <ActivityItem
                   key={venta.id}
                   title={venta.cliente?.nombre || 'Cliente desconocido'}
@@ -159,11 +153,11 @@ export default function Dashboard() {
         </div>
 
         {/* Pagos Recientes */}
-        <div className="bg-white rounded-2xl p-6 shadow-apple-md border border-gray-100">
-          <h2 className="text-xl font-semibold mb-4 text-gray-900">Pagos Recientes</h2>
-          <div className="space-y-3">
+        <div className="bg-white rounded-2xl p-5 md:p-7 shadow-apple-md border border-gray-100">
+          <h2 className="text-lg md:text-xl font-semibold mb-5 md:mb-6 text-gray-900">Pagos Recientes</h2>
+          <div className="space-y-3 md:space-y-4">
             {abonosRecientes.length === 0 ? (
-              <p className="text-gray-500 text-sm text-center py-4">No hay pagos recientes</p>
+              <p className="text-gray-500 text-sm text-center py-8 md:py-12">No hay pagos recientes</p>
             ) : (
               abonosRecientes.map((abono) => (
                 <ActivityItem
@@ -180,18 +174,20 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Alertas/Notificaciones */}
+      {/* Alertas con mejor espaciado */}
       {stats.clientesMorosos > 0 && (
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-2xl p-6">
-          <div className="flex items-start gap-4">
-            <div className="flex-shrink-0 w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold">
+        <div className="mt-6 md:mt-8 bg-blue-50 border border-blue-200 rounded-2xl p-5 md:p-7">
+          <div className="flex items-start gap-4 md:gap-5">
+            <div className="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-sm md:text-base">
               {stats.clientesMorosos}
             </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-1">Clientes con pagos próximos a vencer</h3>
-              <p className="text-sm text-gray-600">
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-gray-900 mb-2 text-base md:text-lg">
+                Clientes con pagos próximos a vencer
+              </h3>
+              <p className="text-sm md:text-base text-gray-600">
                 Hay {stats.clientesMorosos} clientes con pagos que vencen en los próximos 3 días. 
-                <button className="ml-2 text-blue-600 font-medium hover:text-blue-700">
+                <button className="ml-2 text-blue-600 font-medium hover:text-blue-700 transition-colors">
                   Ver detalles →
                 </button>
               </p>
@@ -203,7 +199,6 @@ export default function Dashboard() {
   );
 }
 
-// Componente KPI Card
 function KPICard({ title, value, trend, trendUp, icon, color }) {
   const colorClasses = {
     blue: "from-blue-500 to-blue-600",
@@ -212,36 +207,35 @@ function KPICard({ title, value, trend, trendUp, icon, color }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-apple-md border border-gray-100 hover:shadow-apple-lg transition-all duration-300">
-      <div className="flex items-start justify-between mb-4">
-        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colorClasses[color]} flex items-center justify-center text-2xl`}>
+    <div className="bg-white rounded-2xl p-5 md:p-7 shadow-apple-md border border-gray-100 hover:shadow-apple-lg transition-all duration-300">
+      <div className="flex items-start justify-between mb-4 md:mb-5">
+        <div className={`w-11 h-11 md:w-14 md:h-14 rounded-xl bg-gradient-to-br ${colorClasses[color]} flex items-center justify-center text-xl md:text-3xl shadow-sm`}>
           {icon}
         </div>
-        <span className={`text-sm font-medium px-2 py-1 rounded-full ${trendUp ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+        <span className={`text-xs md:text-sm font-medium px-2.5 py-1 md:px-3 md:py-1.5 rounded-full ${trendUp ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
           {trend}
         </span>
       </div>
-      <p className="text-sm text-gray-600 mb-1">{title}</p>
-      <p className="text-3xl font-semibold text-gray-900">{value}</p>
+      <p className="text-xs md:text-sm text-gray-600 mb-1 md:mb-2">{title}</p>
+      <p className="text-2xl md:text-3xl lg:text-4xl font-semibold text-gray-900 tracking-tight">{value}</p>
     </div>
   );
 }
 
-// Componente Activity Item
 function ActivityItem({ title, subtitle, amount, time, isPayment = false }) {
   return (
-    <div className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors">
-      <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isPayment ? 'bg-green-100' : 'bg-blue-100'}`}>
-          <span className="text-lg">{isPayment ? '💵' : '🛒'}</span>
+    <div className="flex items-center justify-between p-3 md:p-4 rounded-xl hover:bg-gray-50 transition-colors">
+      <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center flex-shrink-0 ${isPayment ? 'bg-green-100' : 'bg-blue-100'}`}>
+          <span className="text-lg md:text-xl">{isPayment ? '💵' : '🛒'}</span>
         </div>
-        <div>
-          <p className="font-medium text-gray-900 text-sm">{title}</p>
-          <p className="text-xs text-gray-500">{subtitle}</p>
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-gray-900 text-sm md:text-base truncate">{title}</p>
+          <p className="text-xs md:text-sm text-gray-500">{subtitle}</p>
         </div>
       </div>
-      <div className="text-right">
-        <p className={`font-semibold text-sm ${isPayment ? 'text-green-600' : 'text-gray-900'}`}>
+      <div className="text-right flex-shrink-0 ml-3">
+        <p className={`font-semibold text-sm md:text-base ${isPayment ? 'text-green-600' : 'text-gray-900'}`}>
           {amount}
         </p>
         <p className="text-xs text-gray-500">{time}</p>
@@ -250,7 +244,6 @@ function ActivityItem({ title, subtitle, amount, time, isPayment = false }) {
   );
 }
 
-// Función auxiliar para formatear tiempo
 function formatTimeAgo(fecha) {
   const ahora = new Date();
   const entonces = new Date(fecha);

@@ -71,7 +71,7 @@ export default function Abonos() {
         .from('abono')
         .insert([{
           cliente_id: clienteSeleccionado.id,
-          empleado_id: 'id-empleado-actual', // TODO: Obtener del contexto de auth
+          empleado_id: '4d7133c3-fb1a-49ee-871a-2c5b0a8d984a', // TODO: Obtener del contexto de auth
           monto: montoNumerico,
           referencia: referencia || null,
           metodo_pago: metodoPago
@@ -120,7 +120,7 @@ export default function Abonos() {
               value={searchCliente}
               onChange={(e) => buscarClientes(e.target.value)}
               className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Escribe el nombre del cliente..."
+              placeholder="     Escribe el nombre del cliente..."
               disabled={loading}
             />
           </div>
@@ -189,7 +189,7 @@ export default function Abonos() {
           </label>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-gray-400">
-              $
+              $   
             </span>
             <input
               type="number"
@@ -197,7 +197,7 @@ export default function Abonos() {
               value={monto}
               onChange={(e) => setMonto(e.target.value)}
               className="w-full pl-10 pr-4 py-4 border border-gray-200 rounded-xl text-3xl font-bold text-green-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="0.00"
+              placeholder="     0.00"
               disabled={!clienteSeleccionado || loading}
               required
             />
@@ -221,9 +221,9 @@ export default function Abonos() {
             className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={loading}
           >
-            <option value="efectivo">💵 Efectivo</option>
-            <option value="transferencia">🏦 Transferencia</option>
-            <option value="tarjeta">💳 Tarjeta</option>
+            <option value="efectivo">Efectivo</option>
+            <option value="transferencia">Transferencia</option>
+            <option value="tarjeta">Tarjeta</option>
           </select>
         </div>
 
@@ -255,7 +255,7 @@ export default function Abonos() {
             </>
           ) : (
             <>
-              💰 Registrar Pago
+               Registrar Pago
             </>
           )}
         </button>
