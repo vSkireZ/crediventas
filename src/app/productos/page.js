@@ -34,16 +34,21 @@ export default function Productos() {
         .eq('activo', true)
         .order('nombre', { ascending: true });
 
-      if (filterStock === 'bajo') {
-        query = query.lte('stock', supabase.raw('stock_minimo'));
-      } else if (filterStock === 'agotado') {
+      if (filterStock === 'agotado') {
         query = query.eq('stock', 0);
       }
 
       const { data, error } = await query;
 
       if (error) throw error;
-      setProductos(data || []);
+
+      let productosFiltrados = data || [];
+
+      if (filterStock === 'bajo') {
+        productosFiltrados = productosFiltrados.filter(p => p.stock <= p.stock_minimo);
+      }
+
+      setProductos(productosFiltrados);
     } catch (error) {
       console.error('Error al cargar productos:', error);
       alert(t.common.error + ': ' + error.message);
