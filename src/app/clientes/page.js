@@ -2,8 +2,10 @@
 import { useState, useEffect } from 'react';
 import { Search, Plus, Eye, Edit2, Trash2, Filter, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function Clientes() {
+  const { t } = useLanguage();
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,7 +41,7 @@ export default function Clientes() {
       setClientes(data || []);
     } catch (error) {
       console.error('Error al cargar clientes:', error);
-      alert('Error al cargar clientes: ' + error.message);
+      alert(t.common.error + ': ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -47,7 +49,7 @@ export default function Clientes() {
 
   const buscarClientes = async (termino) => {
     setSearchTerm(termino);
-    
+
     if (termino.length < 2) {
       cargarClientes();
       return;
@@ -120,7 +122,7 @@ export default function Clientes() {
           }]);
 
         if (error) throw error;
-        alert('Cliente creado exitosamente');
+        alert(t.common.success);
       } else {
         const { error } = await supabase
           .from('cliente')
@@ -128,21 +130,21 @@ export default function Clientes() {
           .eq('id', selectedCliente.id);
 
         if (error) throw error;
-        alert('Cliente actualizado exitosamente');
+        alert(t.common.success);
       }
 
       cerrarModal();
       cargarClientes();
     } catch (error) {
       console.error('Error al guardar cliente:', error);
-      alert('Error: ' + error.message);
+      alert(t.common.error + ': ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
   const eliminarCliente = async (cliente) => {
-    if (!confirm(`¿Estás seguro de eliminar a ${cliente.nombre}?`)) {
+    if (!confirm(t.common.confirmDelete)) {
       return;
     }
 
@@ -156,18 +158,18 @@ export default function Clientes() {
 
       if (error) throw error;
 
-      alert('Cliente eliminado exitosamente');
+      alert(t.common.success);
       cargarClientes();
     } catch (error) {
       console.error('Error al eliminar:', error);
-      alert('Error: ' + error.message);
+      alert(t.common.error + ': ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
   const verDetalle = (cliente) => {
-    alert(`Detalle de ${cliente.nombre}\n\nDirección: ${cliente.direccion || 'N/A'}\nTeléfono: ${cliente.telefono || 'N/A'}\nSaldo: $${parseFloat(cliente.saldo_pendiente || 0).toFixed(2)}\nLímite: $${parseFloat(cliente.limite_credito || 0).toFixed(2)}`);
+    alert(`${t.clients.details.title.replace('{name}', cliente.nombre)}\n\n${t.clients.details.address}: ${cliente.direccion || 'N/A'}\n${t.clients.details.phone}: ${cliente.telefono || 'N/A'}\n${t.clients.details.balance}: $${parseFloat(cliente.saldo_pendiente || 0).toFixed(2)}\n${t.clients.details.limit}: $${parseFloat(cliente.limite_credito || 0).toFixed(2)}`);
   };
 
   if (loading && clientes.length === 0) {
@@ -184,18 +186,18 @@ export default function Clientes() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 md:gap-6 mb-6 md:mb-8">
         <div>
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight text-gray-900 mb-2">
-            Clientes
+            {t.clients.title}
           </h1>
           <p className="text-sm md:text-base text-gray-600">
-            {clientes.length} clientes registrados
+            {t.clients.showing.replace('{count}', clientes.length)}
           </p>
         </div>
-        <button 
+        <button
           onClick={abrirModalCrear}
           className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 text-white px-5 md:px-6 py-3 md:py-3.5 rounded-xl font-medium hover:bg-blue-700 shadow-apple-sm hover:shadow-apple-md transition-all duration-200"
         >
           <Plus className="w-5 h-5" />
-          <span>Nuevo Cliente</span>
+          <span>{t.clients.newClient}</span>
         </button>
       </div>
 
@@ -206,7 +208,7 @@ export default function Clientes() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="     Buscar cliente por nombre..."
+              placeholder={t.common.search}
               value={searchTerm}
               onChange={(e) => buscarClientes(e.target.value)}
               className="w-full pl-12 pr-4 py-3 md:py-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
@@ -220,10 +222,10 @@ export default function Clientes() {
               onChange={(e) => setFilterStatus(e.target.value)}
               className="flex-1 lg:flex-initial px-4 py-3 md:py-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
             >
-              <option value="todos">Todos los clientes</option>
-              <option value="activo">Activos</option>
-              <option value="moroso">Morosos</option>
-              <option value="inactivo">Inactivos</option>
+              <option value="todos">{t.clients.title}</option>
+              <option value="activo">{t.clients.status.active}</option>
+              <option value="moroso">{t.clients.status.overdue}</option>
+              <option value="inactivo">{t.clients.inactive}</option>
             </select>
           </div>
         </div>
@@ -235,88 +237,86 @@ export default function Clientes() {
           <table className="w-full min-w-[800px]">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Cliente</th>
-                <th className="text-left p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Contacto</th>
-                <th className="text-right p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Saldo Actual</th>
-                <th className="text-right p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Límite Crédito</th>
-                <th className="text-center p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Estado</th>
-                <th className="text-center p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Acciones</th>
+                <th className="text-left p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">{t.clients.table.client}</th>
+                <th className="text-left p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">{t.clients.table.contact}</th>
+                <th className="text-right p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">{t.clients.table.balance}</th>
+                <th className="text-right p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">{t.clients.table.creditLimit}</th>
+                <th className="text-center p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">{t.clients.table.status}</th>
+                <th className="text-center p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">{t.clients.table.actions}</th>
               </tr>
             </thead>
             <tbody>
               {clientes.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="text-center py-16 md:py-20 text-gray-500 text-sm md:text-base">
-                    No se encontraron clientes
+                    {t.common.noData}
                   </td>
                 </tr>
               ) : (
                 clientes.map((cliente) => (
-                  <tr 
-                    key={cliente.id} 
+                  <tr
+                    key={cliente.id}
                     className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                   >
                     <td className="p-4 md:p-5">
                       <div>
                         <p className="font-medium text-gray-900 text-sm md:text-base mb-1">{cliente.nombre}</p>
-                        <p className="text-xs md:text-sm text-gray-500">{cliente.direccion || 'Sin dirección'}</p>
+                        <p className="text-xs md:text-sm text-gray-500">{cliente.direccion || t.clients.noAddress}</p>
                       </div>
                     </td>
                     <td className="p-4 md:p-5">
-                      <p className="text-xs md:text-sm text-gray-900">{cliente.telefono || 'Sin teléfono'}</p>
+                      <p className="text-xs md:text-sm text-gray-900">{cliente.telefono || t.clients.noPhone}</p>
                     </td>
                     <td className="p-4 md:p-5 text-right">
-                      <p className={`font-semibold text-sm md:text-base ${
-                        parseFloat(cliente.saldo_pendiente) > 0 
-                          ? 'text-red-600' 
-                          : 'text-green-600'
-                      }`}>
-                        ${parseFloat(cliente.saldo_pendiente || 0).toLocaleString('es-MX', { 
-                          minimumFractionDigits: 2 
+                      <p className={`font-semibold text-sm md:text-base ${parseFloat(cliente.saldo_pendiente) > 0
+                        ? 'text-red-600'
+                        : 'text-green-600'
+                        }`}>
+                        ${parseFloat(cliente.saldo_pendiente || 0).toLocaleString('es-MX', {
+                          minimumFractionDigits: 2
                         })}
                       </p>
                     </td>
                     <td className="p-4 md:p-5 text-right">
                       <p className="text-xs md:text-sm text-gray-600">
-                        ${parseFloat(cliente.limite_credito || 0).toLocaleString('es-MX', { 
-                          minimumFractionDigits: 2 
+                        ${parseFloat(cliente.limite_credito || 0).toLocaleString('es-MX', {
+                          minimumFractionDigits: 2
                         })}
                       </p>
                     </td>
                     <td className="p-4 md:p-5">
                       <div className="flex justify-center">
-                        <span className={`px-2.5 md:px-3 py-1 md:py-1.5 rounded-full text-xs font-medium ${
-                          cliente.estado === 'activo' 
-                            ? 'bg-green-100 text-green-700'
-                            : cliente.estado === 'moroso'
+                        <span className={`px-2.5 md:px-3 py-1 md:py-1.5 rounded-full text-xs font-medium ${cliente.estado === 'activo'
+                          ? 'bg-green-100 text-green-700'
+                          : cliente.estado === 'moroso'
                             ? 'bg-red-100 text-red-700'
                             : 'bg-gray-100 text-gray-700'
-                        }`}>
-                          {cliente.estado === 'activo' ? 'Activo' : 
-                           cliente.estado === 'moroso' ? 'Moroso' : 'Inactivo'}
+                          }`}>
+                          {cliente.estado === 'activo' ? t.clients.status.active :
+                            cliente.estado === 'moroso' ? t.clients.status.overdue : t.clients.inactive}
                         </span>
                       </div>
                     </td>
                     <td className="p-4 md:p-5">
                       <div className="flex items-center justify-center gap-2">
-                        <button 
+                        <button
                           onClick={() => verDetalle(cliente)}
                           className="p-2 hover:bg-blue-50 rounded-lg transition-colors group"
-                          title="Ver detalle"
+                          title={t.dashboard.viewDetails}
                         >
                           <Eye className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => abrirModalEditar(cliente)}
                           className="p-2 hover:bg-blue-50 rounded-lg transition-colors group"
-                          title="Editar"
+                          title={t.common.edit}
                         >
                           <Edit2 className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => eliminarCliente(cliente)}
                           className="p-2 hover:bg-red-50 rounded-lg transition-colors group"
-                          title="Eliminar"
+                          title={t.common.delete}
                         >
                           <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-600" />
                         </button>
@@ -331,7 +331,7 @@ export default function Clientes() {
 
         <div className="flex items-center justify-between p-4 md:p-5 border-t border-gray-100">
           <p className="text-xs md:text-sm text-gray-600">
-            Mostrando {clientes.length} clientes
+            {t.clients.showing.replace('{count}', clientes.length)}
           </p>
         </div>
       </div>
@@ -342,9 +342,9 @@ export default function Clientes() {
           <div className="bg-white rounded-2xl shadow-apple-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="p-5 md:p-7 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white">
               <h2 className="text-lg md:text-xl font-semibold text-gray-900">
-                {modalMode === 'create' ? 'Nuevo Cliente' : 'Editar Cliente'}
+                {modalMode === 'create' ? t.clients.newClient : t.common.edit}
               </h2>
-              <button 
+              <button
                 onClick={cerrarModal}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
@@ -355,47 +355,47 @@ export default function Clientes() {
             <form onSubmit={guardarCliente} className="p-5 md:p-7 space-y-5 md:space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre *
+                  {t.clients.form.name} *
                 </label>
                 <input
                   type="text"
                   value={formData.nombre}
-                  onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
-                  placeholder="Nombre del cliente"
+                  placeholder={t.clients.form.namePlaceholder}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Dirección
+                  {t.clients.form.address}
                 </label>
                 <input
                   type="text"
                   value={formData.direccion}
-                  onChange={(e) => setFormData({...formData, direccion: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Dirección completa"
+                  placeholder={t.clients.form.addressPlaceholder}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Teléfono
+                  {t.clients.form.phone}
                 </label>
                 <input
                   type="tel"
                   value={formData.telefono}
-                  onChange={(e) => setFormData({...formData, telefono: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="331-123-4567"
+                  placeholder={t.clients.form.phonePlaceholder}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Límite de Crédito *
+                  {t.clients.form.creditLimit} *
                 </label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">$</span>
@@ -403,7 +403,7 @@ export default function Clientes() {
                     type="number"
                     step="0.01"
                     value={formData.limite_credito}
-                    onChange={(e) => setFormData({...formData, limite_credito: parseFloat(e.target.value)})}
+                    onChange={(e) => setFormData({ ...formData, limite_credito: parseFloat(e.target.value) })}
                     className="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                     placeholder="0.00"
@@ -417,14 +417,14 @@ export default function Clientes() {
                   onClick={cerrarModal}
                   className="flex-1 px-4 py-3 border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
                 >
-                  Cancelar
+                  {t.common.cancel}
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
                   className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
-                  {loading ? 'Guardando...' : 'Guardar'}
+                  {loading ? t.common.loading : t.common.save}
                 </button>
               </div>
             </form>

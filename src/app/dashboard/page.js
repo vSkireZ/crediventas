@@ -1,8 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function Dashboard() {
+  const { t } = useLanguage();
   const [stats, setStats] = useState({
     ventasHoy: 0,
     abonosHoy: 0,
@@ -20,34 +22,34 @@ export default function Dashboard() {
   const cargarDatos = async () => {
     try {
       const hoy = new Date().toISOString().split('T')[0];
-      
+
       const { data: ventasHoy, error: ventasError } = await supabase
         .from('venta')
         .select('total')
         .gte('fecha', `${hoy}T00:00:00`)
         .lte('fecha', `${hoy}T23:59:59`);
-      
+
       if (ventasError) throw ventasError;
-      
+
       const { data: abonosHoy, error: abonosError } = await supabase
         .from('abono')
         .select('monto')
         .gte('fecha', `${hoy}T00:00:00`)
         .lte('fecha', `${hoy}T23:59:59`);
-      
+
       if (abonosError) throw abonosError;
-      
+
       const { data: clientes, error: clientesError } = await supabase
         .from('cliente')
         .select('saldo_pendiente, estado');
-      
+
       if (clientesError) throw clientesError;
-      
+
       const totalVentas = ventasHoy?.reduce((sum, v) => sum + parseFloat(v.total || 0), 0) || 0;
       const totalAbonos = abonosHoy?.reduce((sum, a) => sum + parseFloat(a.monto || 0), 0) || 0;
       const saldoTotal = clientes?.reduce((sum, c) => sum + parseFloat(c.saldo_pendiente || 0), 0) || 0;
       const morosos = clientes?.filter(c => c.estado === 'moroso').length || 0;
-      
+
       setStats({
         ventasHoy: totalVentas,
         abonosHoy: totalAbonos,
@@ -60,16 +62,16 @@ export default function Dashboard() {
         .select('id, total, fecha, cliente:cliente_id(nombre)')
         .order('fecha', { ascending: false })
         .limit(3);
-      
+
       const { data: abonos } = await supabase
         .from('abono')
         .select('id, monto, fecha, cliente:cliente_id(nombre)')
         .order('fecha', { ascending: false })
         .limit(3);
-      
+
       setVentasRecientes(ventas || []);
       setAbonosRecientes(abonos || []);
-      
+
     } catch (error) {
       console.error('Error al cargar datos:', error);
     } finally {
@@ -90,14 +92,14 @@ export default function Dashboard() {
       {/* Header con más espacio */}
       <div className="mb-6 md:mb-10">
         <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight text-gray-900 mb-2 md:mb-3">
-          Panel Principal
+          {t.dashboard.title}
         </h1>
         <p className="text-sm md:text-base text-gray-600">
-          Resumen de actividad del día · {new Date().toLocaleDateString('es-MX', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
+          {t.dashboard.summary} · {new Date().toLocaleDateString('es-MX', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
           })}
         </p>
       </div>
@@ -105,7 +107,7 @@ export default function Dashboard() {
       {/* KPI Cards con espaciado mejorado */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8 mb-6 md:mb-10">
         <KPICard
-          title="Ventas de Hoy"
+          title={t.dashboard.salesToday}
           value={`$${stats.ventasHoy.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
           trend="+12.5%"
           trendUp={true}
@@ -113,7 +115,7 @@ export default function Dashboard() {
           color="blue"
         />
         <KPICard
-          title="Cobrado Hoy"
+          title={t.dashboard.collectedToday}
           value={`$${stats.abonosHoy.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
           trend="+8.3%"
           trendUp={true}
@@ -121,7 +123,7 @@ export default function Dashboard() {
           color="green"
         />
         <KPICard
-          title="Saldo Pendiente"
+          title={t.dashboard.pendingBalance}
           value={`$${stats.saldoTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
           trend="-3.2%"
           trendUp={true}
@@ -134,10 +136,10 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
         {/* Últimas Ventas */}
         <div className="bg-white rounded-2xl p-5 md:p-7 shadow-apple-md border border-gray-100">
-          <h2 className="text-lg md:text-xl font-semibold mb-5 md:mb-6 text-gray-900">Últimas Ventas</h2>
+          <h2 className="text-lg md:text-xl font-semibold mb-5 md:mb-6 text-gray-900">{t.dashboard.recentSales}</h2>
           <div className="space-y-3 md:space-y-4">
             {ventasRecientes.length === 0 ? (
-              <p className="text-gray-500 text-sm text-center py-8 md:py-12">No hay ventas recientes</p>
+              <p className="text-gray-500 text-sm text-center py-8 md:py-12">{t.dashboard.noRecentSales}</p>
             ) : (
               ventasRecientes.map((venta) => (
                 <ActivityItem
@@ -145,7 +147,7 @@ export default function Dashboard() {
                   title={venta.cliente?.nombre || 'Cliente desconocido'}
                   subtitle={`Venta #${venta.id.substring(0, 8)}`}
                   amount={`$${parseFloat(venta.total).toFixed(2)}`}
-                  time={formatTimeAgo(venta.fecha)}
+                  time={formatTimeAgo(venta.fecha, t)}
                 />
               ))
             )}
@@ -154,10 +156,10 @@ export default function Dashboard() {
 
         {/* Pagos Recientes */}
         <div className="bg-white rounded-2xl p-5 md:p-7 shadow-apple-md border border-gray-100">
-          <h2 className="text-lg md:text-xl font-semibold mb-5 md:mb-6 text-gray-900">Pagos Recientes</h2>
+          <h2 className="text-lg md:text-xl font-semibold mb-5 md:mb-6 text-gray-900">{t.dashboard.recentPayments}</h2>
           <div className="space-y-3 md:space-y-4">
             {abonosRecientes.length === 0 ? (
-              <p className="text-gray-500 text-sm text-center py-8 md:py-12">No hay pagos recientes</p>
+              <p className="text-gray-500 text-sm text-center py-8 md:py-12">{t.dashboard.noRecentPayments}</p>
             ) : (
               abonosRecientes.map((abono) => (
                 <ActivityItem
@@ -165,7 +167,7 @@ export default function Dashboard() {
                   title={abono.cliente?.nombre || 'Cliente desconocido'}
                   subtitle={`Abono #${abono.id.substring(0, 8)}`}
                   amount={`$${parseFloat(abono.monto).toFixed(2)}`}
-                  time={formatTimeAgo(abono.fecha)}
+                  time={formatTimeAgo(abono.fecha, t)}
                   isPayment={true}
                 />
               ))
@@ -183,12 +185,12 @@ export default function Dashboard() {
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-gray-900 mb-2 text-base md:text-lg">
-                Clientes con pagos próximos a vencer
+                {t.dashboard.debtorsTitle}
               </h3>
               <p className="text-sm md:text-base text-gray-600">
-                Hay {stats.clientesMorosos} clientes con pagos que vencen en los próximos 3 días. 
+                {t.dashboard.debtorsDesc.replace('{count}', stats.clientesMorosos)}
                 <button className="ml-2 text-blue-600 font-medium hover:text-blue-700 transition-colors">
-                  Ver detalles →
+                  {t.dashboard.viewDetails} →
                 </button>
               </p>
             </div>
@@ -244,15 +246,16 @@ function ActivityItem({ title, subtitle, amount, time, isPayment = false }) {
   );
 }
 
-function formatTimeAgo(fecha) {
+function formatTimeAgo(fecha, t) {
   const ahora = new Date();
   const entonces = new Date(fecha);
   const diffMs = ahora - entonces;
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
-  
-  if (diffMins < 1) return 'Justo ahora';
-  if (diffMins < 60) return `Hace ${diffMins} min`;
-  if (diffHours < 24) return `Hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`;
-  return `Hace ${Math.floor(diffHours / 24)} día${Math.floor(diffHours / 24) > 1 ? 's' : ''}`;
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return t.dashboard.justNow;
+  if (diffMins < 60) return t.dashboard.minsAgo.replace('{count}', diffMins);
+  if (diffHours < 24) return t.dashboard.hoursAgo.replace('{count}', diffHours);
+  return t.dashboard.daysAgo.replace('{count}', diffDays);
 }

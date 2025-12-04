@@ -2,8 +2,10 @@
 import { useState, useEffect } from 'react';
 import { Search, DollarSign, CreditCard, User } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function Abonos() {
+  const { t } = useLanguage();
   const [clientes, setClientes] = useState([]);
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [searchCliente, setSearchCliente] = useState('');
@@ -14,7 +16,7 @@ export default function Abonos() {
 
   const buscarClientes = async (termino) => {
     setSearchCliente(termino);
-    
+
     if (termino.length < 2) {
       setClientes([]);
       return;
@@ -43,21 +45,21 @@ export default function Abonos() {
 
   const registrarAbono = async (e) => {
     e.preventDefault();
-    
+
     if (!clienteSeleccionado) {
-      alert('Por favor selecciona un cliente');
+      alert(t.sales.selectClientAlert);
       return;
     }
 
     const montoNumerico = parseFloat(monto);
-    
+
     if (isNaN(montoNumerico) || montoNumerico <= 0) {
-      alert('Por favor ingresa un monto válido');
+      alert('Por favor ingresa un monto válido'); // TODO: Add to translations if needed
       return;
     }
 
     const saldoPendiente = parseFloat(clienteSeleccionado.saldo_pendiente);
-    
+
     if (montoNumerico > saldoPendiente) {
       alert(`El monto no puede ser mayor al saldo pendiente: $${saldoPendiente.toFixed(2)}`);
       return;
@@ -81,8 +83,8 @@ export default function Abonos() {
 
       if (abonoError) throw abonoError;
 
-      alert('¡Abono registrado exitosamente!');
-      
+      alert(t.payments.successMsg);
+
       // Limpiar formulario
       setClienteSeleccionado(null);
       setSearchCliente('');
@@ -91,7 +93,7 @@ export default function Abonos() {
       setMetodoPago('efectivo');
     } catch (error) {
       console.error('Error al registrar abono:', error);
-      alert('Error al registrar abono: ' + error.message);
+      alert(t.common.error + ': ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -100,18 +102,18 @@ export default function Abonos() {
   return (
     <div className="max-w-3xl mx-auto animate-fadeInUp">
       <h1 className="text-4xl font-semibold tracking-tight text-gray-900 mb-2 text-center">
-        Registrar Abono
+        {t.payments.title}
       </h1>
       <p className="text-gray-600 text-center mb-8">
-        Registro de pagos y abonos a crédito
+        {t.payments.subtitle}
       </p>
-      
+
       <form onSubmit={registrarAbono} className="bg-white p-8 rounded-2xl shadow-apple-lg border border-gray-100">
         {/* Buscar Cliente */}
         <div className="mb-6">
           <label className="block text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
             <User className="w-4 h-4 text-gray-400" />
-            Buscar Cliente
+            {t.payments.searchClient}
           </label>
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -120,7 +122,7 @@ export default function Abonos() {
               value={searchCliente}
               onChange={(e) => buscarClientes(e.target.value)}
               className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="     Escribe el nombre del cliente..."
+              placeholder={t.payments.searchPlaceholder}
               disabled={loading}
             />
           </div>
@@ -137,7 +139,7 @@ export default function Abonos() {
                 >
                   <p className="font-medium text-gray-900">{cliente.nombre}</p>
                   <p className="text-sm text-red-600 font-semibold">
-                    Saldo pendiente: ${parseFloat(cliente.saldo_pendiente).toFixed(2)}
+                    {t.dashboard.pendingBalance}: ${parseFloat(cliente.saldo_pendiente).toFixed(2)}
                   </p>
                 </button>
               ))}
@@ -150,7 +152,7 @@ export default function Abonos() {
           <div className="p-6 bg-blue-50 rounded-xl mb-6 border border-blue-200">
             <div className="flex justify-between items-start mb-3">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Cliente seleccionado:</p>
+                <p className="text-sm text-gray-600 mb-1">{t.payments.selectedClient}:</p>
                 <p className="font-semibold text-gray-900 text-lg">{clienteSeleccionado.nombre}</p>
               </div>
               <button
@@ -161,18 +163,18 @@ export default function Abonos() {
                 }}
                 className="text-red-600 text-sm hover:underline"
               >
-                Cambiar
+                {t.sales.change}
               </button>
             </div>
             <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-blue-200">
               <div>
-                <p className="text-xs text-gray-600">Saldo Actual:</p>
+                <p className="text-xs text-gray-600">{t.payments.currentBalance}:</p>
                 <p className="text-2xl font-bold text-red-600">
                   ${parseFloat(clienteSeleccionado.saldo_pendiente).toFixed(2)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-600">Límite de Crédito:</p>
+                <p className="text-xs text-gray-600">{t.payments.creditLimit}:</p>
                 <p className="text-lg font-semibold text-gray-700">
                   ${parseFloat(clienteSeleccionado.limite_credito).toFixed(2)}
                 </p>
@@ -185,11 +187,11 @@ export default function Abonos() {
         <div className="mb-6">
           <label className="block text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
             <DollarSign className="w-4 h-4 text-gray-400" />
-            Monto a Abonar
+            {t.payments.amountToPay}
           </label>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-gray-400">
-              $   
+              $
             </span>
             <input
               type="number"
@@ -204,7 +206,7 @@ export default function Abonos() {
           </div>
           {clienteSeleccionado && monto && parseFloat(monto) > 0 && (
             <p className="text-sm text-gray-600 mt-2">
-              Nuevo saldo: ${(parseFloat(clienteSeleccionado.saldo_pendiente) - parseFloat(monto)).toFixed(2)}
+              {t.payments.newBalance}: ${(parseFloat(clienteSeleccionado.saldo_pendiente) - parseFloat(monto)).toFixed(2)}
             </p>
           )}
         </div>
@@ -213,7 +215,7 @@ export default function Abonos() {
         <div className="mb-6">
           <label className="block text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
             <CreditCard className="w-4 h-4 text-gray-400" />
-            Método de Pago
+            {t.payments.paymentMethod}
           </label>
           <select
             value={metodoPago}
@@ -221,23 +223,23 @@ export default function Abonos() {
             className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={loading}
           >
-            <option value="efectivo">Efectivo</option>
-            <option value="transferencia">Transferencia</option>
-            <option value="tarjeta">Tarjeta</option>
+            <option value="efectivo">{t.payments.methods.cash}</option>
+            <option value="transferencia">{t.payments.methods.transfer}</option>
+            <option value="tarjeta">{t.payments.methods.card}</option>
           </select>
         </div>
 
         {/* Referencia (opcional) */}
         <div className="mb-6">
           <label className="block text-sm font-semibold text-gray-900 mb-2">
-            Referencia (opcional)
+            {t.payments.reference}
           </label>
           <input
             type="text"
             value={referencia}
             onChange={(e) => setReferencia(e.target.value)}
             className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Núm. de operación, folio, etc."
+            placeholder={t.payments.referencePlaceholder}
             disabled={loading}
           />
         </div>
@@ -251,11 +253,11 @@ export default function Abonos() {
           {loading ? (
             <>
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
-              Registrando...
+              {t.payments.registering}
             </>
           ) : (
             <>
-               Registrar Pago
+              {t.payments.registerPayment}
             </>
           )}
         </button>

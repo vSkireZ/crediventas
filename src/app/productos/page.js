@@ -2,8 +2,10 @@
 import { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, Package, AlertTriangle, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function Productos() {
+  const { t } = useLanguage();
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,7 +46,7 @@ export default function Productos() {
       setProductos(data || []);
     } catch (error) {
       console.error('Error al cargar productos:', error);
-      alert('Error al cargar productos: ' + error.message);
+      alert(t.common.error + ': ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -52,7 +54,7 @@ export default function Productos() {
 
   const buscarProductos = async (termino) => {
     setSearchTerm(termino);
-    
+
     if (termino.length < 2) {
       cargarProductos();
       return;
@@ -131,7 +133,7 @@ export default function Productos() {
           }]);
 
         if (error) throw error;
-        alert('Producto creado exitosamente');
+        alert(t.common.success);
       } else {
         const { error } = await supabase
           .from('producto')
@@ -139,21 +141,21 @@ export default function Productos() {
           .eq('id', selectedProducto.id);
 
         if (error) throw error;
-        alert('Producto actualizado exitosamente');
+        alert(t.common.success);
       }
 
       cerrarModal();
       cargarProductos();
     } catch (error) {
       console.error('Error al guardar producto:', error);
-      alert('Error: ' + error.message);
+      alert(t.common.error + ': ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
   const eliminarProducto = async (producto) => {
-    if (!confirm(`¿Estás seguro de eliminar "${producto.nombre}"?`)) {
+    if (!confirm(t.common.confirmDelete)) {
       return;
     }
 
@@ -168,11 +170,11 @@ export default function Productos() {
 
       if (error) throw error;
 
-      alert('Producto eliminado exitosamente');
+      alert(t.common.success);
       cargarProductos();
     } catch (error) {
       console.error('Error al eliminar:', error);
-      alert('Error: ' + error.message);
+      alert(t.common.error + ': ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -180,11 +182,11 @@ export default function Productos() {
 
   const obtenerEstadoStock = (producto) => {
     if (producto.stock === 0) {
-      return { label: 'Agotado', color: 'bg-red-100 text-red-700' };
+      return { label: t.products.status.outOfStock, color: 'bg-red-100 text-red-700' };
     } else if (producto.stock <= producto.stock_minimo) {
-      return { label: 'Bajo Stock', color: 'bg-yellow-100 text-yellow-700' };
+      return { label: t.products.status.lowStock, color: 'bg-yellow-100 text-yellow-700' };
     } else {
-      return { label: 'Disponible', color: 'bg-green-100 text-green-700' };
+      return { label: t.products.status.available, color: 'bg-green-100 text-green-700' };
     }
   };
 
@@ -202,18 +204,18 @@ export default function Productos() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 md:gap-6 mb-6 md:mb-8">
         <div>
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight text-gray-900 mb-2">
-            Inventario de Productos
+            {t.products.title}
           </h1>
           <p className="text-sm md:text-base text-gray-600">
-            {productos.length} productos registrados
+            {t.products.subtitle.replace('{count}', productos.length)}
           </p>
         </div>
-        <button 
+        <button
           onClick={abrirModalCrear}
           className="w-full sm:w-auto flex items-center justify-center gap-2 bg-green-600 text-white px-5 md:px-6 py-3 md:py-3.5 rounded-xl font-medium hover:bg-green-700 shadow-apple-sm hover:shadow-apple-md transition-all duration-200"
         >
           <Plus className="w-5 h-5" />
-          <span>Agregar Producto</span>
+          <span>{t.products.addProduct}</span>
         </button>
       </div>
 
@@ -224,7 +226,7 @@ export default function Productos() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="     Buscar producto por nombre o código..."
+              placeholder={t.products.searchPlaceholder}
               value={searchTerm}
               onChange={(e) => buscarProductos(e.target.value)}
               className="w-full pl-12 pr-4 py-3 md:py-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
@@ -238,9 +240,9 @@ export default function Productos() {
               onChange={(e) => setFilterStock(e.target.value)}
               className="flex-1 lg:flex-initial px-4 py-3 md:py-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
             >
-              <option value="todos">Todos los productos</option>
-              <option value="bajo">Bajo stock</option>
-              <option value="agotado">Agotados</option>
+              <option value="todos">{t.products.filterAll}</option>
+              <option value="bajo">{t.products.filterLow}</option>
+              <option value="agotado">{t.products.filterOut}</option>
             </select>
           </div>
         </div>
@@ -252,28 +254,28 @@ export default function Productos() {
           <table className="w-full min-w-[900px]">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Código</th>
-                <th className="text-left p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Producto</th>
-                <th className="text-right p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Precio</th>
-                <th className="text-center p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Stock</th>
-                <th className="text-center p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Mín.</th>
-                <th className="text-center p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Estado</th>
-                <th className="text-center p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">Acciones</th>
+                <th className="text-left p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">{t.products.table.code}</th>
+                <th className="text-left p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">{t.products.table.product}</th>
+                <th className="text-right p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">{t.products.table.price}</th>
+                <th className="text-center p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">{t.products.table.stock}</th>
+                <th className="text-center p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">{t.products.table.min}</th>
+                <th className="text-center p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">{t.products.table.status}</th>
+                <th className="text-center p-4 md:p-5 text-xs md:text-sm font-semibold text-gray-700">{t.products.table.actions}</th>
               </tr>
             </thead>
             <tbody>
               {productos.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="text-center py-16 md:py-20 text-gray-500 text-sm md:text-base">
-                    No se encontraron productos
+                    {t.products.noProducts}
                   </td>
                 </tr>
               ) : (
                 productos.map((producto) => {
                   const estado = obtenerEstadoStock(producto);
                   return (
-                    <tr 
-                      key={producto.id} 
+                    <tr
+                      key={producto.id}
                       className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                     >
                       <td className="p-4 md:p-5">
@@ -295,13 +297,12 @@ export default function Productos() {
                         </p>
                       </td>
                       <td className="p-4 md:p-5 text-center">
-                        <span className={`font-semibold text-sm md:text-base ${
-                          producto.stock === 0 
-                            ? 'text-red-600' 
-                            : producto.stock <= producto.stock_minimo 
-                            ? 'text-yellow-600' 
-                            : 'text-gray-900'
-                        }`}>
+                        <span className={`font-semibold text-sm md:text-base ${producto.stock === 0
+                            ? 'text-red-600'
+                            : producto.stock <= producto.stock_minimo
+                              ? 'text-yellow-600'
+                              : 'text-gray-900'
+                          }`}>
                           {producto.stock}
                         </span>
                       </td>
@@ -322,17 +323,17 @@ export default function Productos() {
                       </td>
                       <td className="p-4 md:p-5">
                         <div className="flex items-center justify-center gap-2">
-                          <button 
+                          <button
                             onClick={() => abrirModalEditar(producto)}
                             className="p-2 hover:bg-blue-50 rounded-lg transition-colors group"
-                            title="Editar"
+                            title={t.common.edit}
                           >
                             <Edit2 className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
                           </button>
-                          <button 
+                          <button
                             onClick={() => eliminarProducto(producto)}
                             className="p-2 hover:bg-red-50 rounded-lg transition-colors group"
-                            title="Eliminar"
+                            title={t.common.delete}
                           >
                             <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-600" />
                           </button>
@@ -348,7 +349,7 @@ export default function Productos() {
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 md:p-5 border-t border-gray-100">
           <p className="text-xs md:text-sm text-gray-600">
-            Mostrando {productos.length} productos
+            {t.products.subtitle.replace('{count}', productos.length)}
           </p>
         </div>
       </div>
@@ -360,10 +361,10 @@ export default function Productos() {
             <AlertTriangle className="w-6 h-6 md:w-7 md:h-7 text-yellow-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-gray-900 mb-2 text-base md:text-lg">
-                Productos con stock bajo o agotado
+                {t.products.lowStockAlert}
               </h3>
               <p className="text-sm md:text-base text-gray-600">
-                Hay {productos.filter(p => p.stock <= p.stock_minimo).length} productos que requieren reabastecimiento.
+                {t.products.lowStockDesc.replace('{count}', productos.filter(p => p.stock <= p.stock_minimo).length)}
               </p>
             </div>
           </div>
@@ -376,9 +377,9 @@ export default function Productos() {
           <div className="bg-white rounded-2xl shadow-apple-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="p-5 md:p-7 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white">
               <h2 className="text-lg md:text-xl font-semibold text-gray-900">
-                {modalMode === 'create' ? 'Nuevo Producto' : 'Editar Producto'}
+                {modalMode === 'create' ? t.products.newProduct : t.products.editProduct}
               </h2>
-              <button 
+              <button
                 onClick={cerrarModal}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
@@ -388,11 +389,11 @@ export default function Productos() {
 
             <form onSubmit={guardarProducto} className="p-5 md:p-7 space-y-5 md:space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Código *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t.products.form.code} *</label>
                 <input
                   type="text"
                   value={formData.codigo}
-                  onChange={(e) => setFormData({...formData, codigo: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                   placeholder="PROD-001"
@@ -401,11 +402,11 @@ export default function Productos() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Nombre *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t.products.form.name} *</label>
                 <input
                   type="text"
                   value={formData.nombre}
-                  onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                   placeholder="Nombre del producto"
@@ -413,10 +414,10 @@ export default function Productos() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t.products.form.description}</label>
                 <textarea
                   value={formData.descripcion}
-                  onChange={(e) => setFormData({...formData, descripcion: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                   rows="3"
                   placeholder="Descripción opcional del producto"
@@ -425,14 +426,14 @@ export default function Productos() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Precio *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t.products.form.price} *</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">$</span>
                     <input
                       type="number"
                       step="0.01"
                       value={formData.precio}
-                      onChange={(e) => setFormData({...formData, precio: parseFloat(e.target.value)})}
+                      onChange={(e) => setFormData({ ...formData, precio: parseFloat(e.target.value) })}
                       className="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                       placeholder="0.00"
@@ -441,11 +442,11 @@ export default function Productos() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Stock *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t.products.form.stock} *</label>
                   <input
                     type="number"
                     value={formData.stock}
-                    onChange={(e) => setFormData({...formData, stock: parseInt(e.target.value)})}
+                    onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) })}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                     placeholder="0"
@@ -454,11 +455,11 @@ export default function Productos() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Stock Mínimo *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t.products.form.minStock} *</label>
                 <input
                   type="number"
                   value={formData.stock_minimo}
-                  onChange={(e) => setFormData({...formData, stock_minimo: parseInt(e.target.value)})}
+                  onChange={(e) => setFormData({ ...formData, stock_minimo: parseInt(e.target.value) })}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                   placeholder="5"
@@ -471,14 +472,14 @@ export default function Productos() {
                   onClick={cerrarModal}
                   className="flex-1 px-4 py-3 border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
                 >
-                  Cancelar
+                  {t.common.cancel}
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
                   className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
-                  {loading ? 'Guardando...' : 'Guardar'}
+                  {loading ? t.common.processing : t.common.save}
                 </button>
               </div>
             </form>

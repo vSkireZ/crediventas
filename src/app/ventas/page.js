@@ -2,8 +2,10 @@
 import { useState, useEffect } from 'react';
 import { Search, ShoppingCart, Plus, Minus, Trash2, User } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function Ventas() {
+  const { t } = useLanguage();
   const [productos, setProductos] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [carrito, setCarrito] = useState([]);
@@ -28,12 +30,12 @@ export default function Ventas() {
         console.error('Error productos:', prodError);
         throw prodError;
       }
-      
+
       setProductos(prodData || []);
       setClientes([]);
     } catch (error) {
       console.error('Error al cargar datos:', error);
-      alert('Error al cargar datos: ' + error.message);
+      alert(t.common.error + ': ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -41,7 +43,7 @@ export default function Ventas() {
 
   const buscarProductos = async (termino) => {
     setSearchProducto(termino);
-    
+
     if (termino.length < 2) {
       cargarDatos();
       return;
@@ -64,7 +66,7 @@ export default function Ventas() {
 
   const buscarClientes = async (termino) => {
     setSearchCliente(termino);
-    
+
     if (termino.length < 2) {
       setClientes([]);
       return;
@@ -93,10 +95,10 @@ export default function Ventas() {
 
   const agregarAlCarrito = (producto) => {
     const existe = carrito.find(item => item.id === producto.id);
-    
+
     if (existe) {
-      setCarrito(carrito.map(item => 
-        item.id === producto.id 
+      setCarrito(carrito.map(item =>
+        item.id === producto.id
           ? { ...item, cantidad: item.cantidad + 1 }
           : item
       ));
@@ -108,8 +110,8 @@ export default function Ventas() {
   const modificarCantidad = (productoId, accion) => {
     setCarrito(carrito.map(item => {
       if (item.id === productoId) {
-        const nuevaCantidad = accion === 'incrementar' 
-          ? item.cantidad + 1 
+        const nuevaCantidad = accion === 'incrementar'
+          ? item.cantidad + 1
           : Math.max(1, item.cantidad - 1);
         return { ...item, cantidad: nuevaCantidad };
       }
@@ -135,12 +137,12 @@ export default function Ventas() {
 
   const confirmarVenta = async () => {
     if (!clienteSeleccionado) {
-      alert('Por favor selecciona un cliente');
+      alert(t.sales.selectClientAlert);
       return;
     }
 
     if (carrito.length === 0) {
-      alert('El carrito está vacío');
+      alert(t.sales.emptyCart);
       return;
     }
 
@@ -148,11 +150,11 @@ export default function Ventas() {
 
     try {
       const total = calcularTotal();
-      const creditoDisponible = parseFloat(clienteSeleccionado.limite_credito || 0) - 
-                                parseFloat(clienteSeleccionado.saldo_pendiente || 0);
+      const creditoDisponible = parseFloat(clienteSeleccionado.limite_credito || 0) -
+        parseFloat(clienteSeleccionado.saldo_pendiente || 0);
 
       if (total > creditoDisponible) {
-        alert(`El cliente no tiene crédito suficiente.\nDisponible: $${creditoDisponible.toFixed(2)}\nTotal venta: $${total.toFixed(2)}`);
+        alert(`${t.sales.insufficientCredit}.\n${t.sales.available}: $${creditoDisponible.toFixed(2)}\n${t.sales.total}: $${total.toFixed(2)}`);
         setLoading(false);
         return;
       }
@@ -201,7 +203,7 @@ export default function Ventas() {
       }
 
       const nuevoSaldo = parseFloat(clienteSeleccionado.saldo_pendiente || 0) + calcularTotal();
-      
+
       const { error: updateError } = await supabase
         .from('cliente')
         .update({ saldo_pendiente: nuevoSaldo })
@@ -211,15 +213,15 @@ export default function Ventas() {
         console.error('Error al actualizar saldo:', updateError);
       }
 
-      alert('¡Venta registrada exitosamente!');
-      
+      alert(t.sales.successMsg);
+
       setCarrito([]);
       setClienteSeleccionado(null);
       setSearchCliente('');
       cargarDatos();
     } catch (error) {
       console.error('Error completo:', error);
-      alert('Error al registrar venta: ' + (error.message || 'Error desconocido'));
+      alert(t.sales.errorMsg + ': ' + (error.message || 'Error desconocido'));
     } finally {
       setLoading(false);
     }
@@ -236,7 +238,7 @@ export default function Ventas() {
   return (
     <div className="animate-fadeInUp space-y-6 md:space-y-8">
       <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight text-gray-900 mb-6 md:mb-8">
-        Nueva Venta a Crédito
+        {t.sales.title}
       </h1>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
@@ -246,20 +248,20 @@ export default function Ventas() {
           <div className="bg-white rounded-2xl p-5 md:p-7 shadow-apple-md border border-gray-100">
             <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4 md:mb-5 flex items-center gap-2 md:gap-3">
               <User className="w-5 h-5 md:w-6 md:h-6 text-gray-400" />
-              <span>Cliente</span>
+              <span>{t.sales.selectClient}</span>
             </h2>
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="     Buscar cliente..."
+                placeholder={t.sales.searchClient}
                 value={searchCliente}
                 onChange={(e) => buscarClientes(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 md:py-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
                 disabled={loading}
               />
             </div>
-            
+
             {clientes.length > 0 && !clienteSeleccionado && (
               <div className="mt-3 bg-white border border-gray-200 rounded-xl max-h-48 overflow-y-auto">
                 {clientes.map(cliente => (
@@ -271,7 +273,7 @@ export default function Ventas() {
                   >
                     <p className="font-medium text-gray-900 text-sm md:text-base mb-1">{cliente.nombre}</p>
                     <p className="text-xs md:text-sm text-gray-600">
-                      Crédito disponible: ${(parseFloat(cliente.limite_credito || 0) - parseFloat(cliente.saldo_pendiente || 0)).toFixed(2)}
+                      {t.sales.availableCredit}: ${(parseFloat(cliente.limite_credito || 0) - parseFloat(cliente.saldo_pendiente || 0)).toFixed(2)}
                     </p>
                   </button>
                 ))}
@@ -284,8 +286,8 @@ export default function Ventas() {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900 text-sm md:text-base mb-2">{clienteSeleccionado.nombre}</p>
                     <p className="text-xs md:text-sm text-gray-600">
-                      Límite: ${parseFloat(clienteSeleccionado.limite_credito || 0).toFixed(2)} · 
-                      Disponible: ${(parseFloat(clienteSeleccionado.limite_credito || 0) - parseFloat(clienteSeleccionado.saldo_pendiente || 0)).toFixed(2)}
+                      {t.sales.limit}: ${parseFloat(clienteSeleccionado.limite_credito || 0).toFixed(2)} ·
+                      {t.sales.available}: ${(parseFloat(clienteSeleccionado.limite_credito || 0) - parseFloat(clienteSeleccionado.saldo_pendiente || 0)).toFixed(2)}
                     </p>
                   </div>
                   <button
@@ -296,7 +298,7 @@ export default function Ventas() {
                     }}
                     className="text-red-600 text-xs md:text-sm hover:underline flex-shrink-0"
                   >
-                    Cambiar
+                    {t.sales.change}
                   </button>
                 </div>
               </div>
@@ -308,7 +310,7 @@ export default function Ventas() {
             <div className="flex items-center justify-between mb-4 md:mb-5">
               <h2 className="text-base md:text-lg font-semibold text-gray-900 flex items-center gap-2 md:gap-3">
                 <ShoppingCart className="w-5 h-5 md:w-6 md:h-6 text-gray-400" />
-                <span>Productos</span>
+                <span>{t.sales.products}</span>
               </h2>
             </div>
 
@@ -316,7 +318,7 @@ export default function Ventas() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="     Buscar producto..."
+                placeholder={t.sales.searchProduct}
                 value={searchProducto}
                 onChange={(e) => buscarProductos(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 md:py-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-sm md:text-base"
@@ -326,7 +328,7 @@ export default function Ventas() {
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3 gap-3 md:gap-4 max-h-96 overflow-y-auto">
               {productos.length === 0 ? (
                 <div className="col-span-full text-center py-12 md:py-16 text-gray-500 text-sm md:text-base">
-                  No hay productos disponibles
+                  {t.sales.noProducts}
                 </div>
               ) : (
                 productos.map((producto) => (
@@ -346,7 +348,7 @@ export default function Ventas() {
                     <p className="font-medium text-gray-900 text-sm md:text-base mb-2 line-clamp-2 min-h-[2.5rem]">{producto.nombre}</p>
                     <div className="flex items-center justify-between">
                       <p className="text-blue-600 font-semibold text-sm md:text-base">${parseFloat(producto.precio).toFixed(2)}</p>
-                      <p className="text-xs text-gray-500">Stock: {producto.stock}</p>
+                      <p className="text-xs text-gray-500">{t.sales.stock}: {producto.stock}</p>
                     </div>
                   </button>
                 ))
@@ -359,9 +361,9 @@ export default function Ventas() {
         <div className="xl:col-span-1">
           <div className="bg-white rounded-2xl shadow-apple-lg border border-gray-100 sticky top-6">
             <div className="p-5 md:p-7 border-b border-gray-100">
-              <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-1">Ticket de Venta</h2>
+              <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-1">{t.sales.ticket}</h2>
               <p className="text-sm text-gray-500">
-                {carrito.length} {carrito.length === 1 ? 'producto' : 'productos'}
+                {t.sales.items.replace('{count}', carrito.length)}
               </p>
             </div>
 
@@ -369,7 +371,7 @@ export default function Ventas() {
               {carrito.length === 0 ? (
                 <div className="text-center py-12 md:py-16">
                   <ShoppingCart className="w-14 h-14 md:w-16 md:h-16 text-gray-300 mx-auto mb-3 md:mb-4" />
-                  <p className="text-gray-400 text-sm">El carrito está vacío</p>
+                  <p className="text-gray-400 text-sm">{t.sales.emptyCart}</p>
                 </div>
               ) : (
                 <div className="space-y-3 md:space-y-4">
@@ -380,7 +382,7 @@ export default function Ventas() {
                         <p className="text-xs md:text-sm text-gray-600">${parseFloat(item.precio).toFixed(2)} c/u</p>
                       </div>
                       <div className="flex items-center gap-1.5 md:gap-2">
-                        <button 
+                        <button
                           type="button"
                           onClick={() => modificarCantidad(item.id, 'decrementar')}
                           className="w-7 h-7 md:w-8 md:h-8 rounded-lg border border-gray-300 flex items-center justify-center hover:bg-gray-100"
@@ -388,7 +390,7 @@ export default function Ventas() {
                           <Minus className="w-3 h-3 md:w-4 md:h-4 text-gray-600" />
                         </button>
                         <span className="w-7 md:w-8 text-center font-medium text-sm">{item.cantidad}</span>
-                        <button 
+                        <button
                           type="button"
                           onClick={() => modificarCantidad(item.id, 'incrementar')}
                           className="w-7 h-7 md:w-8 md:h-8 rounded-lg border border-gray-300 flex items-center justify-center hover:bg-gray-100"
@@ -396,7 +398,7 @@ export default function Ventas() {
                           <Plus className="w-3 h-3 md:w-4 md:h-4 text-gray-600" />
                         </button>
                       </div>
-                      <button 
+                      <button
                         type="button"
                         onClick={() => eliminarDelCarrito(item.id)}
                         className="p-1.5 hover:bg-red-50 rounded-lg"
@@ -411,16 +413,16 @@ export default function Ventas() {
 
             <div className="p-5 md:p-7 border-t border-gray-100 space-y-3 md:space-y-4">
               <div className="flex justify-between text-sm md:text-base">
-                <span className="text-gray-600">Subtotal</span>
+                <span className="text-gray-600">{t.sales.subtotal}</span>
                 <span className="font-medium">${calcularSubtotal().toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm md:text-base">
-                <span className="text-gray-600">IVA (16%)</span>
+                <span className="text-gray-600">{t.sales.tax}</span>
                 <span className="font-medium">${calcularIVA().toFixed(2)}</span>
               </div>
               <div className="h-px bg-gray-200" />
               <div className="flex justify-between items-baseline">
-                <span className="text-base md:text-lg font-semibold text-gray-900">Total</span>
+                <span className="text-base md:text-lg font-semibold text-gray-900">{t.sales.total}</span>
                 <span className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900">
                   ${calcularTotal().toFixed(2)}
                 </span>
@@ -428,7 +430,7 @@ export default function Ventas() {
             </div>
 
             <div className="p-5 md:p-7 pt-0">
-              <button 
+              <button
                 type="button"
                 onClick={confirmarVenta}
                 disabled={carrito.length === 0 || !clienteSeleccionado || loading}
@@ -437,10 +439,10 @@ export default function Ventas() {
                 {loading ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
-                    <span>Procesando...</span>
+                    <span>{t.common.processing}</span>
                   </>
                 ) : (
-                  'Confirmar Venta'
+                  t.sales.confirmSale
                 )}
               </button>
             </div>

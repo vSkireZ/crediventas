@@ -2,8 +2,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { TrendingUp, Users, Package, DollarSign, Calendar, Download } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function Reportes() {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [periodo, setPeriodo] = useState('mes'); // 'semana', 'mes', 'trimestre', 'año'
   const [reportes, setReportes] = useState({
@@ -26,7 +28,7 @@ export default function Reportes() {
     setLoading(true);
     try {
       const fechaInicio = obtenerFechaInicio(periodo);
-      
+
       // 1. Ventas por día
       const { data: ventas, error: ventasError } = await supabase
         .from('venta')
@@ -109,7 +111,7 @@ export default function Reportes() {
 
   const obtenerFechaInicio = (periodo) => {
     const hoy = new Date();
-    switch(periodo) {
+    switch (periodo) {
       case 'semana':
         hoy.setDate(hoy.getDate() - 7);
         break;
@@ -169,7 +171,7 @@ export default function Reportes() {
   };
 
   const exportarPDF = () => {
-    alert('Funcionalidad de exportar a PDF próximamente');
+    alert('Funcionalidad de exportar a PDF próximamente'); // TODO: Translate if needed
   };
 
   if (loading) {
@@ -190,10 +192,10 @@ export default function Reportes() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 md:gap-6 mb-6 md:mb-8">
         <div>
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight text-gray-900 mb-2">
-            Reportes Financieros
+            {t.reports.title}
           </h1>
           <p className="text-sm md:text-base text-gray-600">
-            Análisis de ventas, productos y clientes
+            {t.reports.subtitle}
           </p>
         </div>
         <div className="flex gap-3 w-full sm:w-auto">
@@ -202,10 +204,10 @@ export default function Reportes() {
             onChange={(e) => setPeriodo(e.target.value)}
             className="flex-1 sm:flex-initial px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
           >
-            <option value="semana">Última semana</option>
-            <option value="mes">Último mes</option>
-            <option value="trimestre">Último trimestre</option>
-            <option value="año">Último año</option>
+            <option value="semana">{t.reports.periods.week}</option>
+            <option value="mes">{t.reports.periods.month}</option>
+            <option value="trimestre">{t.reports.periods.quarter}</option>
+            <option value="año">{t.reports.periods.year}</option>
           </select>
           <button
             onClick={exportarPDF}
@@ -220,25 +222,25 @@ export default function Reportes() {
       {/* Estadísticas Generales */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <StatCard
-          title="Ventas Totales"
+          title={t.reports.stats.totalSales}
           value={`$${reportes.estadisticasGenerales.ventasTotales.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
           icon={<DollarSign className="w-6 h-6" />}
           color="blue"
         />
         <StatCard
-          title="Clientes Activos"
+          title={t.reports.stats.activeClients}
           value={reportes.estadisticasGenerales.clientesActivos}
           icon={<Users className="w-6 h-6" />}
           color="green"
         />
         <StatCard
-          title="Productos en Stock"
+          title={t.reports.stats.productsInStock}
           value={reportes.estadisticasGenerales.productosStock}
           icon={<Package className="w-6 h-6" />}
           color="purple"
         />
         <StatCard
-          title="Saldos Pendientes"
+          title={t.reports.stats.pendingBalances}
           value={`$${reportes.estadisticasGenerales.saldosPendientes.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
           icon={<TrendingUp className="w-6 h-6" />}
           color="orange"
@@ -252,12 +254,12 @@ export default function Reportes() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg md:text-xl font-semibold text-gray-900 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-blue-500" />
-              <span>Ventas por Día</span>
+              <span>{t.reports.charts.salesByDay}</span>
             </h2>
           </div>
           <div className="space-y-3">
             {reportes.ventasPorDia.length === 0 ? (
-              <p className="text-center py-12 text-gray-500 text-sm">No hay datos para mostrar</p>
+              <p className="text-center py-12 text-gray-500 text-sm">{t.common.noData}</p>
             ) : (
               reportes.ventasPorDia.map((item, index) => (
                 <div key={index} className="space-y-2">
@@ -268,7 +270,7 @@ export default function Reportes() {
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                    <div 
+                    <div
                       className="bg-gradient-to-r from-blue-500 to-blue-600 h-2.5 rounded-full transition-all duration-500"
                       style={{ width: `${(item.total / maxVenta) * 100}%` }}
                     />
@@ -284,12 +286,12 @@ export default function Reportes() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg md:text-xl font-semibold text-gray-900 flex items-center gap-2">
               <Package className="w-5 h-5 text-green-500" />
-              <span>Productos Más Vendidos</span>
+              <span>{t.reports.charts.topProducts}</span>
             </h2>
           </div>
           <div className="space-y-3">
             {reportes.topProductos.length === 0 ? (
-              <p className="text-center py-12 text-gray-500 text-sm">No hay datos para mostrar</p>
+              <p className="text-center py-12 text-gray-500 text-sm">{t.common.noData}</p>
             ) : (
               reportes.topProductos.map((item, index) => (
                 <div key={index} className="space-y-2">
@@ -301,11 +303,11 @@ export default function Reportes() {
                       <span className="font-medium text-gray-700 truncate">{item.nombre}</span>
                     </div>
                     <span className="font-semibold text-green-600 ml-2">
-                      {item.cantidad} unidades
+                      {item.cantidad} {t.reports.units}
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                    <div 
+                    <div
                       className="bg-gradient-to-r from-green-500 to-green-600 h-2.5 rounded-full transition-all duration-500"
                       style={{ width: `${(item.cantidad / maxProducto) * 100}%` }}
                     />
@@ -321,12 +323,12 @@ export default function Reportes() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg md:text-xl font-semibold text-gray-900 flex items-center gap-2">
               <Users className="w-5 h-5 text-purple-500" />
-              <span>Mejores Clientes</span>
+              <span>{t.reports.charts.topClients}</span>
             </h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {reportes.topClientes.length === 0 ? (
-              <p className="col-span-full text-center py-12 text-gray-500 text-sm">No hay datos para mostrar</p>
+              <p className="col-span-full text-center py-12 text-gray-500 text-sm">{t.common.noData}</p>
             ) : (
               reportes.topClientes.map((item, index) => (
                 <div key={index} className="flex flex-col items-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200">
@@ -350,19 +352,19 @@ export default function Reportes() {
       <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-2xl p-5 md:p-7">
         <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <TrendingUp className="w-5 h-5 text-blue-600" />
-          <span>Insights del Periodo</span>
+          <span>{t.reports.charts.insights}</span>
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-white rounded-xl p-4 border border-gray-200">
-            <p className="text-sm text-gray-600 mb-1">Ticket Promedio</p>
+            <p className="text-sm text-gray-600 mb-1">{t.reports.charts.avgTicket}</p>
             <p className="text-2xl font-bold text-gray-900">
-              ${reportes.ventasPorDia.length > 0 
+              ${reportes.ventasPorDia.length > 0
                 ? (reportes.estadisticasGenerales.ventasTotales / reportes.ventasPorDia.length).toLocaleString('es-MX', { minimumFractionDigits: 2 })
                 : '0.00'}
             </p>
           </div>
           <div className="bg-white rounded-xl p-4 border border-gray-200">
-            <p className="text-sm text-gray-600 mb-1">Producto Estrella</p>
+            <p className="text-sm text-gray-600 mb-1">{t.reports.charts.starProduct}</p>
             <p className="text-xl font-bold text-gray-900 truncate">
               {reportes.topProductos[0]?.nombre || 'N/A'}
             </p>
