@@ -63,7 +63,7 @@ function SidebarContent({ children }) {
             </aside>
 
             {/* MAIN CONTENT */}
-            <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-slate-900">
+            <main className="flex-1 overflow-y-auto bg-gray-100">
                 <div className="max-w-7xl mx-auto p-8">{children}</div>
             </main>
         </div>

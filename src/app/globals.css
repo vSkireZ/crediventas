@@ -34,9 +34,10 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* 🔥 Margen lateral adaptable para evitar contenido pegado */
-  padding: var(--pad-sm);
 }
+
+
+  
 
 /* Animaciones suaves globales */
 * {
